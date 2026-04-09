@@ -1,11 +1,13 @@
-from _future_ import annotations
+from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 import pandas as pd
 
 from src.pipeline.validation import validate_minimum_data
+from src.pipeline.input_contract_validation import validate_input_contract
 from src.graph_builder.prepare_dependency_network import (
     build_dependency_graph,
     build_squad_relationships_table,
@@ -27,42 +29,128 @@ from src.simulations.impact_simulation import (
 # FLOWRADAR - ENTRY POINT
 # ==========================================================
 #
-# Este é o ponto único de execução do projeto.
+# Este é o ponto único de execução do FlowRadar.
 #
-# Uso:
-# python run_flowradar.py --input ./data/raw
+# Exemplos de uso:
 #
-# O objetivo deste arquivo é orquestrar:
-# 1. leitura dos dados
-# 2. validação mínima
-# 3. construção da rede
-# 4. cálculo das métricas estruturais
-# 5. geração de visualizações
-# 6. simulação opcional de impacto
+# 1) Rodar com dados de exemplo:
+#    python run_flowradar.py --mode example
+#
+# 2) Rodar com dados reais:
+#    python run_flowradar.py --mode prod
+#
+# 3) Rodar apontando um diretório manualmente:
+#    python run_flowradar.py --input ./data/raw/example
+#
+# 4) Rodar com simulação de impacto:
+#    python run_flowradar.py --mode example --simulate-squad "Squad B"
+#
 # ==========================================================
 
 
-def load_raw_input_data(input_dir: Path) -> dict[str, pd.DataFrame]:
+def resolve_input_directory(
+    input_dir: str | None,
+    mode: str | None,
+) -> Path:
     """
-    Lê os arquivos CSV mínimos esperados para o FlowRadar.
+    Resolve o diretório de entrada.
 
-    Esperado:
-    - example_work_items.csv
-    - example_relationships.csv
-    - example_team_mapping.csv
-
-    Returns
-    -------
-    dict[str, pd.DataFrame]
-        Dicionário com os dataframes carregados.
+    Prioridade:
+    1. --input
+    2. --mode
+    3. fallback para example
     """
-    work_items_file = input_dir / "example_work_items.csv"
-    relationships_file = input_dir / "example_relationships.csv"
-    team_mapping_file = input_dir / "example_team_mapping.csv"
+    if input_dir:
+        return Path(input_dir)
 
-    work_items = pd.read_csv(work_items_file, encoding="utf-8-sig")
-    relationships = pd.read_csv(relationships_file, encoding="utf-8-sig")
-    team_mapping = pd.read_csv(team_mapping_file, encoding="utf-8-sig")
+    if mode == "prod":
+        return Path("data/raw/prod")
+
+    return Path("data/raw/example")
+
+
+def expected_file_names_for_directory(input_path: Path) -> dict[str, str]:
+    """
+    Define os nomes de arquivos esperados para o diretório informado.
+
+    Convenção:
+    - pasta example  -> arquivos com prefixo example_
+    - pasta prod     -> arquivos sem prefixo
+    """
+    if input_path.name == "example":
+        return {
+            "work_items": "example_work_items.csv",
+            "relationships": "example_relationships.csv",
+            "team_mapping": "example_team_mapping.csv",
+        }
+
+    return {
+        "work_items": "work_items.csv",
+        "relationships": "relationships.csv",
+        "team_mapping": "team_mapping.csv",
+    }
+
+
+def validate_input_directory_exists(input_path: Path) -> None:
+    """
+    Garante que o diretório de entrada exista e seja realmente uma pasta.
+    """
+    if not input_path.exists():
+        raise FileNotFoundError(
+            f"Diretório de entrada não encontrado: {input_path}"
+        )
+
+    if not input_path.is_dir():
+        raise NotADirectoryError(
+            f"O caminho informado não é um diretório: {input_path}"
+        )
+
+
+def validate_required_input_files(input_path: Path) -> dict[str, Path]:
+    """
+    Garante que os arquivos obrigatórios existam no diretório de entrada.
+    """
+    expected_files = expected_file_names_for_directory(input_path)
+
+    resolved_files = {
+        logical_name: input_path / file_name
+        for logical_name, file_name in expected_files.items()
+    }
+
+    missing_files = [
+        file_path.name
+        for file_path in resolved_files.values()
+        if not file_path.exists()
+    ]
+
+    if missing_files:
+        missing_list = ", ".join(sorted(missing_files))
+        raise FileNotFoundError(
+            "Arquivos obrigatórios não encontrados no diretório de entrada: "
+            f"{missing_list}"
+        )
+
+    return resolved_files
+
+
+def load_raw_input_data(input_path: Path) -> dict[str, pd.DataFrame]:
+    """
+    Carrega os arquivos CSV de entrada do FlowRadar.
+    """
+    resolved_files = validate_required_input_files(input_path)
+
+    work_items = pd.read_csv(
+        resolved_files["work_items"],
+        encoding="utf-8-sig",
+    )
+    relationships = pd.read_csv(
+        resolved_files["relationships"],
+        encoding="utf-8-sig",
+    )
+    team_mapping = pd.read_csv(
+        resolved_files["team_mapping"],
+        encoding="utf-8-sig",
+    )
 
     return {
         "work_items": work_items,
@@ -76,10 +164,7 @@ def generate_summary(
     squad_relationships_table: pd.DataFrame,
 ) -> dict:
     """
-    Gera um resumo executivo simples a partir dos resultados.
-
-    Este summary é intencionalmente enxuto, para servir como
-    ponto de partida. Você pode enriquecer depois.
+    Gera um resumo executivo simples da execução.
     """
     if structural_metrics_table.empty:
         return {
@@ -101,58 +186,118 @@ def generate_summary(
 
 def save_summary(summary_data: dict, output_file: Path) -> None:
     """
-    Salva um resumo executivo em JSON.
+    Salva o summary executivo em JSON.
     """
-    import json
-
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
     with output_file.open("w", encoding="utf-8") as file:
         json.dump(summary_data, file, ensure_ascii=False, indent=2)
 
 
-def main(input_dir: str, simulate_squad: str | None = None) -> None:
-    input_path = Path(input_dir)
+def print_execution_header(input_path: Path, output_path: Path) -> None:
+    """
+    Imprime o cabeçalho de execução.
+    """
+    print("\n[FlowRadar] Iniciando processamento...\n")
+    print(f"[FlowRadar] Diretório de entrada : {input_path.resolve()}")
+    print(f"[FlowRadar] Diretório de outputs : {output_path.resolve()}\n")
+
+
+def print_execution_success(output_path: Path) -> None:
+    """
+    Imprime mensagem final de sucesso.
+    """
+    print("\n[FlowRadar] 🚀 Processamento concluído com sucesso")
+    print(f"[FlowRadar] Outputs gerados em: {output_path.resolve()}\n")
+
+
+def main(
+    input_dir: str | None = None,
+    mode: str | None = None,
+    simulate_squad: str | None = None,
+) -> None:
+    input_path = resolve_input_directory(
+        input_dir=input_dir,
+        mode=mode,
+    )
     output_path = Path("data/outputs")
     output_path.mkdir(parents=True, exist_ok=True)
 
-    print("\n[FlowRadar] Iniciando processamento...\n")
+    print_execution_header(
+        input_path=input_path,
+        output_path=output_path,
+    )
 
     # ------------------------------------------------------
-    # 1. LEITURA DOS DADOS
+    # 1. VALIDAÇÃO DO DIRETÓRIO DE ENTRADA
+    # ------------------------------------------------------
+    try:
+        validate_input_directory_exists(input_path)
+        print("[FlowRadar] ✔ Diretório de entrada validado")
+    except (FileNotFoundError, NotADirectoryError) as error:
+        print("[FlowRadar] ❌ Execução interrompida\n")
+        print(f"Motivo: {error}")
+        return
+
+    # ------------------------------------------------------
+    # 2. LEITURA DOS DADOS
     # ------------------------------------------------------
     try:
         raw_data = load_raw_input_data(input_path)
+        print("[FlowRadar] ✔ Arquivos obrigatórios encontrados e carregados")
     except FileNotFoundError as error:
         print("[FlowRadar] ❌ Execução interrompida\n")
-        print("Motivo: arquivo de entrada não encontrado.")
+        print(f"Motivo: {error}\n")
+        print("Estrutura esperada:")
+        print("- example: example_work_items.csv, example_relationships.csv, example_team_mapping.csv")
+        print("- prod   : work_items.csv, relationships.csv, team_mapping.csv")
+        return
+    except Exception as error:
+        print("[FlowRadar] ❌ Execução interrompida\n")
+        print("Motivo: falha ao carregar os dados de entrada.")
         print(f"Detalhe: {error}")
-        print("\nArquivos esperados dentro do diretório informado:")
-        print("- example_work_items.csv")
-        print("- example_relationships.csv")
-        print("- example_team_mapping.csv")
         return
-
-    print("[FlowRadar] ✔ Dados carregados")
-
-    # ------------------------------------------------------
-    # 2. VALIDAÇÃO MÍNIMA
-    # ------------------------------------------------------
-    validation_result = validate_minimum_data(raw_data)
-
-    if not validation_result["is_valid"]:
-        print("\n[FlowRadar] ❌ Execução interrompida\n")
-        print(f"Motivo: {validation_result['reason']}")
-        return
-
-    print("[FlowRadar] ✔ Dados mínimos validados")
 
     work_items = raw_data["work_items"]
     relationships = raw_data["relationships"]
     team_mapping = raw_data["team_mapping"]
 
     # ------------------------------------------------------
-    # 3. TABELA DE RELAÇÕES ENTRE SQUADS
+    # 3. VALIDAÇÃO MÍNIMA
+    # ------------------------------------------------------
+    minimum_validation = validate_minimum_data(raw_data)
+
+    if not minimum_validation["is_valid"]:
+        print("[FlowRadar] ❌ Execução interrompida\n")
+        print(f"Motivo: {minimum_validation['reason']}")
+        return
+
+    print("[FlowRadar] ✔ Dados mínimos validados")
+
+    # ------------------------------------------------------
+    # 4. VALIDAÇÃO DO CONTRATO CANÔNICO
+    # ------------------------------------------------------
+    contract_validation = validate_input_contract(
+        work_items=work_items,
+        relationships=relationships,
+        team_mapping=team_mapping,
+    )
+
+    if not contract_validation.is_valid:
+        print("[FlowRadar] ❌ Execução interrompida\n")
+        print(contract_validation.build_human_readable_message())
+        return
+
+    print("[FlowRadar] ✔ Contrato canônico de entrada validado")
+
+    if contract_validation.warnings:
+        print("[FlowRadar] ⚠ Avisos encontrados na validação:")
+        for warning in contract_validation.warnings:
+            print(f"  - {warning}")
+        print()
+
+    # ------------------------------------------------------
+    # 5. TABELA DE RELAÇÕES ENTRE SQUADS
     # ------------------------------------------------------
     squad_relationships = build_squad_relationships_table(
         work_items=work_items,
@@ -162,7 +307,7 @@ def main(input_dir: str, simulate_squad: str | None = None) -> None:
     print("[FlowRadar] ✔ Relações entre squads preparadas")
 
     # ------------------------------------------------------
-    # 4. CONSTRUÇÃO DO GRAFO
+    # 6. CONSTRUÇÃO DO GRAFO DE DEPENDÊNCIAS
     # ------------------------------------------------------
     dependency_graph = build_dependency_graph(
         squad_relationships_table=squad_relationships
@@ -171,7 +316,7 @@ def main(input_dir: str, simulate_squad: str | None = None) -> None:
     print("[FlowRadar] ✔ Grafo organizacional construído")
 
     # ------------------------------------------------------
-    # 5. MÉTRICAS ESTRUTURAIS
+    # 7. MÉTRICAS ESTRUTURAIS
     # ------------------------------------------------------
     structural_metrics = calculate_and_export_structural_metrics(
         dependency_graph=dependency_graph,
@@ -181,7 +326,7 @@ def main(input_dir: str, simulate_squad: str | None = None) -> None:
     print("[FlowRadar] ✔ Métricas estruturais calculadas")
 
     # ------------------------------------------------------
-    # 6. MATRIZ E HEATMAP DE DEPENDÊNCIAS
+    # 8. MATRIZ DE DEPENDÊNCIAS + HEATMAP
     # ------------------------------------------------------
     dependency_matrix = build_dependency_matrix(
         squad_relationships_table=squad_relationships
@@ -202,7 +347,7 @@ def main(input_dir: str, simulate_squad: str | None = None) -> None:
     print("[FlowRadar] ✔ Heatmap gerado")
 
     # ------------------------------------------------------
-    # 7. RESUMO EXECUTIVO
+    # 9. SUMMARY EXECUTIVO
     # ------------------------------------------------------
     summary = generate_summary(
         structural_metrics_table=structural_metrics,
@@ -217,7 +362,7 @@ def main(input_dir: str, simulate_squad: str | None = None) -> None:
     print("[FlowRadar] ✔ Summary gerado")
 
     # ------------------------------------------------------
-    # 8. SIMULAÇÃO OPCIONAL DE IMPACTO
+    # 10. SIMULAÇÃO OPCIONAL DE IMPACTO
     # ------------------------------------------------------
     if simulate_squad:
         simulation_result = simulate_squad_removal_impact(
@@ -235,21 +380,35 @@ def main(input_dir: str, simulate_squad: str | None = None) -> None:
         )
 
     # ------------------------------------------------------
-    # 9. SAÍDA FINAL
+    # 11. FINALIZAÇÃO
     # ------------------------------------------------------
-    print("\n[FlowRadar] 🚀 Processamento concluído com sucesso")
-    print(f"[FlowRadar] Outputs gerados em: {output_path.resolve()}\n")
+    print_execution_success(output_path=output_path)
 
 
-if __name__ == "_main_":
+if _name_ == "_main_":
     parser = argparse.ArgumentParser(
         description="FlowRadar - análise sistêmica de fluxo e dependências"
     )
+
     parser.add_argument(
         "--input",
-        required=True,
-        help="Diretório com os arquivos de entrada CSV",
+        required=False,
+        help=(
+            "Diretório de entrada com os CSVs. "
+            "Exemplo: ./data/raw/example ou ./data/raw/prod"
+        ),
     )
+
+    parser.add_argument(
+        "--mode",
+        required=False,
+        choices=["example", "prod"],
+        help=(
+            "Modo de execução padronizado. "
+            "Se usado, aponta automaticamente para data/raw/example ou data/raw/prod"
+        ),
+    )
+
     parser.add_argument(
         "--simulate-squad",
         required=False,
@@ -260,5 +419,6 @@ if __name__ == "_main_":
 
     main(
         input_dir=args.input,
+        mode=args.mode,
         simulate_squad=args.simulate_squad,
     )

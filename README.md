@@ -15,23 +15,23 @@ FlowRadar is designed to answer questions that traditional agile metrics cannot:
 - How do dependencies impact flow efficiency?
 - What happens if a critical node is removed?
 
-Instead of focusing only on delivery metrics (lead time, throughput), FlowRadar models the organization as a *dependency network*.
+Instead of focusing only on delivery metrics (lead time, throughput), FlowRadar models the organization as a dependency network.
 
 ---
 
 ## Core Concepts
 
-- *Dependency Graph*  
-  Squads are modeled as nodes, and dependencies as directed edges.
+### Dependency Graph
+Squads are modeled as nodes, and dependencies as directed edges.
 
-- *Structural Criticality*  
-  Combines multiple centrality metrics to identify bottlenecks.
+### Structural Criticality
+Combines multiple centrality metrics to identify bottlenecks.
 
-- *Systemic View*  
-  Moves beyond local optimization to understand global impact.
+### Systemic View
+Moves beyond local optimization to understand global impact.
 
-- *Impact Simulation*  
-  Simulates removal of squads to evaluate structural fragility.
+### Impact Simulation
+Simulates removal of squads to evaluate structural fragility.
 
 ---
 
@@ -49,12 +49,33 @@ Instead of focusing only on delivery metrics (lead time, throughput), FlowRadar 
   - Ranked critical squads
 - Simulate impact of removing a squad
 - Export results in CSV and JSON
+- Validate input data integrity before processing
 
 ---
 
 ## Project Structure
 
-flowradar/ ├── run_flowradar.py ├── requirements.txt ├── src/ │   ├── graph_builder/ │   ├── metrics/ │   ├── visualizations/ │   ├── simulations/ │   └── pipeline/ ├── data/ │   ├── raw/ │   ├── canonical/ │   └── outputs/ ├── docs/ │   └── examples/ └── tests/
+```bash
+flowradar/
+├── run_flowradar.py
+├── requirements.txt
+├── src/
+│   ├── graph_builder/
+│   ├── metrics/
+│   ├── visualizations/
+│   ├── simulations/
+│   └── pipeline/
+│       ├── validation.py
+│       └── input_contract_validation.py
+├── data/
+│   ├── raw/
+│   │   ├── example/
+│   │   └── prod/
+│   ├── outputs/
+├── docs/
+│   └── examples/
+└── tests/
+```
 
 ---
 
@@ -62,54 +83,143 @@ flowradar/ ├── run_flowradar.py ├── requirements.txt ├── src/ 
 
 ### 1. Clone the repository
 
-git clone https://github.com/seu-usuario/flowradar.git⁠� cd flowradar
+```bash
+git clone https://github.com/seu-usuario/flowradar.git
+cd flowradar
+```
 
 ### 2. Create virtual environment (recommended)
 
-python -m venv venv source venv/bin/activate  # Linux/Mac venv\Scripts\activate     # Windows
+```bash
+python -m venv venv
+```
+
+Activate:
+
+Linux / Mac:
+```bash
+source venv/bin/activate
+```
+
+Windows:
+```bash
+venv\Scripts\activate
+```
 
 ### 3. Install dependencies
 
+```bash
 pip install -r requirements.txt
+```
 
 ---
 
-## Input Data
+## Input Data (Canonical Model)
 
-Place your input files inside:
+FlowRadar operates on a canonical input model composed of three CSV files.
 
-data/raw/
+Place them in:
 
-### Required files:
+```bash
+data/raw/example/
+# or
+data/raw/prod/
+```
 
-#### example_work_items.csv
+---
 
-| item_id | team |
-|--------|------|
-| 1 | Squad A |
-| 2 | Squad B |
+### 1. work_items.csv
 
-#### example_relationships.csv
+Columns:
 
-| source_item | target_item |
-|------------|-------------|
-| 1 | 2 |
+```bash
+item_id, team
+```
 
-#### example_team_mapping.csv
+Rules:
+- item_id must be unique
+- team must exist in team_mapping.csv
+- no null values allowed
 
-| team | cluster | tribe |
-|------|---------|-------|
-| Squad A | Cluster 1 | Tribe X |
+---
+
+### 2. relationships.csv
+
+Columns:
+
+```bash
+source_item, target_item
+```
+
+Rules:
+- both items must exist in work_items.csv
+- no null values allowed
+
+---
+
+### 3. team_mapping.csv
+
+Columns:
+
+```bash
+team, cluster, tribe
+```
+
+Rules:
+- team must be unique
+- all teams must match work_items.csv
+
+---
+
+## Data Validation
+
+Before execution, FlowRadar performs:
+
+Structural validation:
+- required columns
+- empty files
+- null values
+
+Referential integrity:
+- relationships → work_items
+- work_items.team → team_mapping
+
+Warnings (non-blocking):
+- duplicate relationships
+- self-dependencies
+- unused teams
+
+If validation fails, execution is interrupted.
 
 ---
 
 ## How to Run
 
-python run_flowradar.py --input ./data/raw
+Example mode:
 
-### Optional: simulate impact
+```bash
+python run_flowradar.py --mode example
+```
 
-python run_flowradar.py --input ./data/raw --simulate-squad "Squad A"
+Production mode:
+
+```bash
+python run_flowradar.py --mode prod
+```
+
+Custom directory:
+
+```bash
+python run_flowradar.py --input ./data/raw/prod
+```
+
+---
+
+## Impact Simulation
+
+```bash
+python run_flowradar.py --mode example --simulate-squad "Squad A"
+```
 
 ---
 
@@ -117,9 +227,11 @@ python run_flowradar.py --input ./data/raw --simulate-squad "Squad A"
 
 Generated in:
 
+```bash
 data/outputs/
+```
 
-### Files:
+Files:
 
 - structural_metrics.csv → ranking of squads by criticality
 - dependency_matrix.csv → matrix of dependencies
@@ -132,18 +244,28 @@ data/outputs/
 ## Example Use Cases
 
 - Identify hidden bottlenecks in large organizations
-- Support architectural decisions
+- Support architectural and organizational decisions
 - Improve flow efficiency
 - Reduce coordination cost
-- Provide data for QBR / leadership discussions
+- Support QBR / leadership discussions with data
+- Detect systemic risks in dependency structures
 
 ---
 
-## Example Data
+## Data Sources
 
-See:
+FlowRadar is tool-agnostic.
 
-docs/examples/
+Data can originate from:
+
+- Jira
+- Azure DevOps
+- SwiftKanban
+- CSV exports
+- Internal APIs
+
+Important:
+All data must be converted to the canonical format before execution.
 
 ---
 
@@ -151,16 +273,18 @@ docs/examples/
 
 - Do not upload sensitive production data
 - Use anonymized or synthetic datasets when sharing
+- Ensure consistency between datasets before running
 
 ---
 
 ## Roadmap
 
 - [ ] Interactive graph visualization (network explorer)
-- [ ] Integration with Jira / Azure DevOps
+- [ ] Native integration with Jira / Azure DevOps
 - [ ] Flow efficiency metrics (waiting vs work)
 - [ ] AI-based pattern detection
 - [ ] Organizational digital twin simulation
+- [ ] Automated data adapters (Jira → FlowRadar)
 
 ---
 
@@ -181,4 +305,4 @@ Agile Coach | Systems Thinking | Data-Driven Organizations
 
 FlowRadar is not just about metrics.
 
-It is about making *invisible organizational dynamics visible*.
+It is about making invisible organizational dynamics visible.

@@ -41,6 +41,10 @@ venv/
 data/raw/*
 !data/raw/.gitkeep
 
+# Ignora dados de produção
+data/raw/prod/*
+!data/raw/prod/.gitkeep
+
 # Ignora dados intermediários
 data/canonical/*
 !data/canonical/.gitkeep
