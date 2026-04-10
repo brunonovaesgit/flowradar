@@ -378,13 +378,6 @@ def main(
 
     print("[FlowRadar] ✔ Grafo organizacional construído")
 
-    export_dependency_graph_visual(
-        dependency_graph=dependency_graph,
-        output_file=output_path / "dependency_graph.png",
-    )
-
-    print("[FlowRadar] ✔ Grafo visual gerado")
-
     # ------------------------------------------------------
     # 7. MÉTRICAS ESTRUTURAIS
     # ------------------------------------------------------
@@ -409,7 +402,18 @@ def main(
     print("[FlowRadar] ✔ Ranking de criticidade gerado")
 
     # ------------------------------------------------------
-    # 8. MATRIZ DE DEPENDÊNCIAS + HEATMAP
+    # 8. GRAFO VISUAL
+    # ------------------------------------------------------
+    export_dependency_graph_visual(
+        dependency_graph=dependency_graph,
+        output_file=output_path / "dependency_graph.png",
+        structural_metrics_table=structural_metrics,
+    )
+
+    print("[FlowRadar] ✔ Grafo visual gerado")
+
+    # ------------------------------------------------------
+    # 9. MATRIZ DE DEPENDÊNCIAS + HEATMAP
     # ------------------------------------------------------
     dependency_matrix = build_dependency_matrix(
         squad_relationships_table=squad_relationships
@@ -430,7 +434,7 @@ def main(
     print("[FlowRadar] ✔ Heatmap gerado")
 
     # ------------------------------------------------------
-    # 9. SUMMARY EXECUTIVO
+    # 10. SUMMARY EXECUTIVO
     # ------------------------------------------------------
     summary = generate_summary(
         structural_metrics_table=structural_metrics,
@@ -445,7 +449,7 @@ def main(
     print("[FlowRadar] ✔ Summary gerado")
 
     # ------------------------------------------------------
-    # 10. SIMULAÇÃO OPCIONAL DE IMPACTO
+    # 11. SIMULAÇÃO OPCIONAL DE IMPACTO
     # ------------------------------------------------------
     if simulate_squad:
         simulation_result = simulate_squad_removal_impact(
@@ -463,7 +467,7 @@ def main(
         )
 
     # ------------------------------------------------------
-    # 11. FINALIZAÇÃO
+    # 12. FINALIZAÇÃO
     # ------------------------------------------------------
     print_execution_success(output_path=output_path)
 
