@@ -385,7 +385,7 @@ def main(
     print_execution_success(output_path=output_path)
 
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="FlowRadar - análise sistêmica de fluxo e dependências"
     )
