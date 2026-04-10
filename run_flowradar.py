@@ -4,6 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import pandas as pd
 
 from src.pipeline.validation import validate_minimum_data
@@ -11,6 +12,7 @@ from src.pipeline.input_contract_validation import validate_input_contract
 from src.graph_builder.prepare_dependency_network import (
     build_dependency_graph,
     build_squad_relationships_table,
+    export_dependency_graph_visual,
 )
 from src.metrics.network_centrality import (
     calculate_and_export_structural_metrics,
@@ -211,6 +213,60 @@ def print_execution_success(output_path: Path) -> None:
     print(f"[FlowRadar] Outputs gerados em: {output_path.resolve()}\n")
 
 
+def print_top_structural_ranking(
+    structural_metrics_table: pd.DataFrame,
+    top_n: int = 5,
+) -> None:
+    """
+    Imprime no terminal o ranking das squads por criticidade estrutural.
+    """
+    if structural_metrics_table.empty:
+        print("[FlowRadar] ⚠ Nenhuma métrica estrutural disponível para ranking")
+        return
+
+    ranking_table = structural_metrics_table.sort_values(
+        by="structural_criticality_score",
+        ascending=False,
+    ).head(top_n)
+
+    print("[FlowRadar] 🔝 Top squads por criticidade estrutural:")
+    for _, row in ranking_table.iterrows():
+        squad = row["squad"]
+        score = row["structural_criticality_score"]
+        print(f"  - {squad}: {score:.4f}")
+    print()
+
+
+def generate_criticality_ranking_chart(
+    structural_metrics_table: pd.DataFrame,
+    output_file: Path,
+    top_n: int = 10,
+) -> None:
+    """
+    Gera gráfico horizontal com ranking de criticidade estrutural.
+    """
+    if structural_metrics_table.empty:
+        return
+
+    ranking_table = structural_metrics_table.sort_values(
+        by="structural_criticality_score",
+        ascending=False,
+    ).head(top_n)
+
+    plt.figure(figsize=(10, 6))
+    plt.barh(
+        ranking_table["squad"],
+        ranking_table["structural_criticality_score"],
+    )
+    plt.gca().invert_yaxis()
+    plt.title("Structural Criticality Ranking")
+    plt.xlabel("Structural Criticality Score")
+    plt.ylabel("Squad")
+    plt.tight_layout()
+    plt.savefig(output_file, dpi=150)
+    plt.close()
+
+
 def main(
     input_dir: str | None = None,
     mode: str | None = None,
@@ -304,7 +360,14 @@ def main(
         relationships=relationships,
     )
 
+    squad_relationships.to_csv(
+        output_path / "squad_relationships.csv",
+        index=False,
+        encoding="utf-8-sig",
+    )
+
     print("[FlowRadar] ✔ Relações entre squads preparadas")
+    print("[FlowRadar] ✔ squad_relationships.csv gerado")
 
     # ------------------------------------------------------
     # 6. CONSTRUÇÃO DO GRAFO DE DEPENDÊNCIAS
@@ -315,6 +378,13 @@ def main(
 
     print("[FlowRadar] ✔ Grafo organizacional construído")
 
+    export_dependency_graph_visual(
+        dependency_graph=dependency_graph,
+        output_file=output_path / "dependency_graph.png",
+    )
+
+    print("[FlowRadar] ✔ Grafo visual gerado")
+
     # ------------------------------------------------------
     # 7. MÉTRICAS ESTRUTURAIS
     # ------------------------------------------------------
@@ -324,6 +394,19 @@ def main(
     )
 
     print("[FlowRadar] ✔ Métricas estruturais calculadas")
+
+    print_top_structural_ranking(
+        structural_metrics_table=structural_metrics,
+        top_n=5,
+    )
+
+    generate_criticality_ranking_chart(
+        structural_metrics_table=structural_metrics,
+        output_file=output_path / "criticality_ranking.png",
+        top_n=10,
+    )
+
+    print("[FlowRadar] ✔ Ranking de criticidade gerado")
 
     # ------------------------------------------------------
     # 8. MATRIZ DE DEPENDÊNCIAS + HEATMAP
