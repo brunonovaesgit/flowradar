@@ -17,9 +17,20 @@ from src.graph_builder.prepare_dependency_network import (
 from src.metrics.network_centrality import (
     calculate_and_export_structural_metrics,
 )
+from src.metrics.risk_analysis import (
+    calculate_risk_analysis,
+    export_risk_analysis,
+)
 from src.visualizations.dependency_heatmap import (
     build_dependency_matrix,
     generate_dependency_heatmap,
+)
+from src.visualizations.visual_style import (
+    LAYOUT,
+    PALETTE,
+    TYPOGRAPHY,
+    build_standard_subtitle,
+    build_standard_title,
 )
 from src.simulations.impact_simulation import (
     simulate_squad_removal_impact,
@@ -237,13 +248,36 @@ def print_top_structural_ranking(
     print()
 
 
-def generate_criticality_ranking_chart(
+def print_top_risk_analysis(
+    risk_analysis_table: pd.DataFrame,
+    top_n: int = 5,
+) -> None:
+    """
+    Imprime no terminal o ranking das squads por risco organizacional.
+    """
+    if risk_analysis_table.empty:
+        print("[FlowRadar] ⚠ Nenhuma análise de risco disponível")
+        return
+
+    print("[FlowRadar] ⚠ Top riscos organizacionais:")
+    for _, row in risk_analysis_table.head(top_n).iterrows():
+        squad = row["squad"]
+        score = row["risk_score"]
+        category = row["risk_category"]
+        print(
+            f"  - {squad} | score={score:.3f} | tipo={category}"
+        )
+    print()
+
+
+def export_criticality_ranking_visual(
     structural_metrics_table: pd.DataFrame,
     output_file: Path,
     top_n: int = 10,
 ) -> None:
     """
-    Gera gráfico horizontal com ranking de criticidade estrutural.
+    Gera gráfico horizontal com ranking de criticidade estrutural
+    padronizado com a identidade visual do FlowRadar.
     """
     if structural_metrics_table.empty:
         return
@@ -253,17 +287,55 @@ def generate_criticality_ranking_chart(
         ascending=False,
     ).head(top_n)
 
-    plt.figure(figsize=(10, 6))
-    plt.barh(
-        ranking_table["squad"],
-        ranking_table["structural_criticality_score"],
+    squads = ranking_table["squad"]
+    scores = ranking_table["structural_criticality_score"]
+
+    plt.figure(figsize=(LAYOUT.figure_width, LAYOUT.figure_height))
+
+    bars = plt.barh(
+        squads,
+        scores,
+        color=PALETTE.blue,
+        edgecolor=PALETTE.white,
     )
+
+    for i, bar in enumerate(bars):
+        if i == 0:
+            bar.set_color(PALETTE.red)
+        elif i < 3:
+            bar.set_color(PALETTE.orange)
+
     plt.gca().invert_yaxis()
-    plt.title("Structural Criticality Ranking")
-    plt.xlabel("Structural Criticality Score")
-    plt.ylabel("Squad")
+    plt.xlabel(
+        "Structural Criticality Score",
+        fontsize=TYPOGRAPHY.label_size,
+    )
+
+    plt.title(
+        build_standard_title("Squad Criticality Ranking"),
+        fontsize=TYPOGRAPHY.title_size,
+        fontweight=TYPOGRAPHY.title_weight,
+    )
+
+    plt.figtext(
+        0.5,
+        0.92,
+        build_standard_subtitle(
+            "Higher scores indicate structurally critical squads in the dependency network"
+        ),
+        ha="center",
+        fontsize=TYPOGRAPHY.subtitle_size,
+        color=PALETTE.mid_gray,
+    )
+
+    plt.scatter([], [], color=PALETTE.red, label="Top bottleneck")
+    plt.scatter([], [], color=PALETTE.orange, label="High criticality")
+    plt.scatter([], [], color=PALETTE.blue, label="Other squads")
+
+    plt.legend(loc="lower right", fontsize=TYPOGRAPHY.legend_size)
+
     plt.tight_layout()
-    plt.savefig(output_file, dpi=150)
+    plt.savefig(output_file, dpi=LAYOUT.dpi)
     plt.close()
 
 
@@ -393,7 +465,7 @@ def main(
         top_n=5,
     )
 
-    generate_criticality_ranking_chart(
+    export_criticality_ranking_visual(
         structural_metrics_table=structural_metrics,
         output_file=output_path / "criticality_ranking.png",
         top_n=10,
@@ -402,7 +474,27 @@ def main(
     print("[FlowRadar] ✔ Ranking de criticidade gerado")
 
     # ------------------------------------------------------
-    # 8. GRAFO VISUAL
+    # 8. ANÁLISE DE RISCO ORGANIZACIONAL
+    # ------------------------------------------------------
+    risk_analysis = calculate_risk_analysis(
+        dependency_graph=dependency_graph,
+        structural_metrics_table=structural_metrics,
+    )
+
+    export_risk_analysis(
+        risk_table=risk_analysis,
+        output_file=output_path / "risk_analysis.csv",
+    )
+
+    print("[FlowRadar] ✔ Análise de risco gerada")
+
+    print_top_risk_analysis(
+        risk_analysis_table=risk_analysis,
+        top_n=5,
+    )
+
+    # ------------------------------------------------------
+    # 9. GRAFO VISUAL
     # ------------------------------------------------------
     export_dependency_graph_visual(
         dependency_graph=dependency_graph,
@@ -413,7 +505,7 @@ def main(
     print("[FlowRadar] ✔ Grafo visual gerado")
 
     # ------------------------------------------------------
-    # 9. MATRIZ DE DEPENDÊNCIAS + HEATMAP
+    # 10. MATRIZ DE DEPENDÊNCIAS + HEATMAP
     # ------------------------------------------------------
     dependency_matrix = build_dependency_matrix(
         squad_relationships_table=squad_relationships
@@ -428,13 +520,12 @@ def main(
     generate_dependency_heatmap(
         dependency_matrix=dependency_matrix,
         output_file=output_path / "dependency_heatmap.png",
-        title="Heatmap of Dependencies Between Squads",
     )
 
     print("[FlowRadar] ✔ Heatmap gerado")
 
     # ------------------------------------------------------
-    # 10. SUMMARY EXECUTIVO
+    # 11. SUMMARY EXECUTIVO
     # ------------------------------------------------------
     summary = generate_summary(
         structural_metrics_table=structural_metrics,
@@ -449,7 +540,7 @@ def main(
     print("[FlowRadar] ✔ Summary gerado")
 
     # ------------------------------------------------------
-    # 11. SIMULAÇÃO OPCIONAL DE IMPACTO
+    # 12. SIMULAÇÃO OPCIONAL DE IMPACTO
     # ------------------------------------------------------
     if simulate_squad:
         simulation_result = simulate_squad_removal_impact(
@@ -462,12 +553,24 @@ def main(
             output_file=output_path / "impact_simulation.json",
         )
 
+        from src.graph_builder.prepare_dependency_network import (
+            export_impact_graph_visual,
+        )
+
+        export_impact_graph_visual(
+            dependency_graph=dependency_graph,
+            removed_squad=simulate_squad,
+            output_file=output_path / "dependency_graph_impact.png",
+            structural_metrics_table=structural_metrics,
+        )
+
         print(
             f"[FlowRadar] ✔ Simulação de impacto executada para a squad: {simulate_squad}"
         )
+        print("[FlowRadar] ✔ Grafo de impacto gerado")
 
     # ------------------------------------------------------
-    # 12. FINALIZAÇÃO
+    # 13. FINALIZAÇÃO
     # ------------------------------------------------------
     print_execution_success(output_path=output_path)
 

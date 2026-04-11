@@ -345,3 +345,149 @@ def export_dependency_graph_visual(
     plt.tight_layout()
     plt.savefig(output_file, dpi=150)
     plt.close()
+
+
+def export_impact_graph_visual(
+    dependency_graph: nx.DiGraph,
+    removed_squad: str,
+    output_file: str,
+    structural_metrics_table: pd.DataFrame | None = None,
+) -> None:
+    """
+    Gera visual executivo do impacto da remoção de uma squad.
+
+    Classificação de impacto:
+    - alto impacto: perdeu >= 40% das conexões
+    - médio impacto: perdeu >= 15% e < 40%
+    - baixo / sem impacto: perdeu menos de 15%
+
+    Cores:
+    - vermelho: squad removida (legenda)
+    - laranja: alto impacto
+    - cinza escuro: médio impacto
+    - azul: baixo / sem impacto
+    """
+
+    if removed_squad not in dependency_graph.nodes():
+        return
+
+    original_graph = dependency_graph.copy()
+
+    # grafo após remoção
+    graph_after_removal = original_graph.copy()
+    graph_after_removal.remove_node(removed_squad)
+
+    # visão executiva
+    graph_after_removal = _filter_graph_for_executive_view(
+        dependency_graph=graph_after_removal,
+        structural_metrics_table=structural_metrics_table,
+        min_edge_weight=2,
+        keep_top_n_squads=5,
+    )
+
+    if len(graph_after_removal.nodes()) == 0:
+        plt.figure(figsize=(14, 10))
+        plt.title(f"Impact Simulation - Removing {removed_squad}")
+        plt.axis("off")
+        plt.tight_layout()
+        plt.savefig(output_file, dpi=150)
+        plt.close()
+        return
+
+    # calcular perda de conectividade por nó
+    high_impact_nodes = set()
+    medium_impact_nodes = set()
+    low_impact_nodes = set()
+
+    remaining_nodes = list(graph_after_removal.nodes())
+
+    for node in remaining_nodes:
+        degree_before = original_graph.degree(node)
+        degree_after = graph_after_removal.degree(node)
+
+        if degree_before == 0:
+            loss_ratio = 0.0
+        else:
+            loss_ratio = (degree_before - degree_after) / degree_before
+
+        if loss_ratio >= 0.40:
+            high_impact_nodes.add(node)
+        elif loss_ratio >= 0.15:
+            medium_impact_nodes.add(node)
+        else:
+            low_impact_nodes.add(node)
+
+    plt.figure(figsize=(14, 10))
+
+    pos = nx.kamada_kawai_layout(graph_after_removal)
+
+    node_size_map = _build_node_size_map(
+        dependency_graph=graph_after_removal,
+        structural_metrics_table=structural_metrics_table,
+    )
+
+    node_sizes = []
+    node_colors = []
+
+    for node in graph_after_removal.nodes():
+        node_sizes.append(node_size_map.get(node, 1800))
+
+        if node in high_impact_nodes:
+            node_colors.append("#F28E2B")  # alto impacto
+        elif node in medium_impact_nodes:
+            node_colors.append("#2F2F2F")  # médio impacto
+        else:
+            node_colors.append("#4C78A8")  # baixo / sem impacto
+
+    edge_weights = [
+        graph_after_removal[u][v].get("weight", 1)
+        for u, v in graph_after_removal.edges()
+    ]
+
+    max_weight = max(edge_weights) if edge_weights else 1
+    edge_widths = [
+        1.2 + (weight / max_weight) * 5.0
+        for weight in edge_weights
+    ]
+
+    nx.draw_networkx_nodes(
+        graph_after_removal,
+        pos,
+        node_size=node_sizes,
+        node_color=node_colors,
+        alpha=0.95,
+        edgecolors="white",
+        linewidths=1.5,
+    )
+
+    nx.draw_networkx_edges(
+        graph_after_removal,
+        pos,
+        width=edge_widths,
+        arrows=True,
+        arrowstyle="->",
+        arrowsize=20,
+        alpha=0.45,
+        edge_color="#666666",
+        connectionstyle="arc3,rad=0.08",
+    )
+
+    nx.draw_networkx_labels(
+        graph_after_removal,
+        pos,
+        font_size=10,
+        font_weight="bold",
+    )
+
+    # legenda visual
+    plt.scatter([], [], color="red", label=f"Removed: {removed_squad}")
+    plt.scatter([], [], color="#F28E2B", label="High impact")
+    plt.scatter([], [], color="#2F2F2F", label="Medium impact")
+    plt.scatter([], [], color="#4C78A8", label="Low / no impact")
+
+    plt.title(f"Impact Simulation - Removing {removed_squad}")
+    plt.legend()
+    plt.axis("off")
+    plt.tight_layout()
+    plt.savefig(output_file, dpi=150)
+    plt.close()
