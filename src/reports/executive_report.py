@@ -58,6 +58,84 @@ def _extract_simulated_squad_from_report_name(file_name: str) -> str | None:
     return None
 
 
+def _format_list_as_html(items: list[str]) -> str:
+    if not items:
+        return "<span class='muted'>None</span>"
+
+    return ", ".join(items)
+
+
+def _build_explain_impact_block(explanation: dict) -> str:
+    if not explanation:
+        return ""
+
+    if explanation.get("error"):
+        return f"""
+        <section class="card">
+            <h2>Explain Impact</h2>
+            <p class="section-subtitle">Why this squad is structurally critical.</p>
+            <p class="empty">{explanation["error"]}</p>
+        </section>
+        """
+
+    squad = explanation.get("squad", "-")
+    direct_dependents = explanation.get("direct_dependents", [])
+    direct_dependencies = explanation.get("direct_dependencies", [])
+    in_degree = explanation.get("in_degree", "-")
+    out_degree = explanation.get("out_degree", "-")
+    betweenness = explanation.get("betweenness_centrality", "-")
+    cascade_impact = explanation.get("cascade_impact", [])
+    summary = explanation.get("summary", "")
+
+    return f"""
+    <section class="card">
+        <h2>Explain Impact</h2>
+        <p class="section-subtitle">
+            Why <strong>{squad}</strong> is structurally relevant in the dependency network.
+        </p>
+
+        <div class="explain-grid">
+            <div class="explain-item">
+                <div class="explain-label">Squad</div>
+                <div class="explain-value">{squad}</div>
+            </div>
+            <div class="explain-item">
+                <div class="explain-label">In degree</div>
+                <div class="explain-value">{in_degree}</div>
+            </div>
+            <div class="explain-item">
+                <div class="explain-label">Out degree</div>
+                <div class="explain-value">{out_degree}</div>
+            </div>
+            <div class="explain-item">
+                <div class="explain-label">Betweenness centrality</div>
+                <div class="explain-value">{betweenness}</div>
+            </div>
+        </div>
+
+        <div class="explain-section">
+            <div class="explain-label">Direct dependents</div>
+            <div class="explain-text">{_format_list_as_html(direct_dependents)}</div>
+        </div>
+
+        <div class="explain-section">
+            <div class="explain-label">Direct dependencies</div>
+            <div class="explain-text">{_format_list_as_html(direct_dependencies)}</div>
+        </div>
+
+        <div class="explain-section">
+            <div class="explain-label">Cascade impact</div>
+            <div class="explain-text">{_format_list_as_html(cascade_impact)}</div>
+        </div>
+
+        <div class="explain-summary">
+            <div class="explain-label">Executive summary</div>
+            <p>{summary}</p>
+        </div>
+    </section>
+    """
+
+
 def generate_executive_report(
     output_dir: str | Path,
     file_name: str = "flowradar_report.html",
@@ -95,6 +173,8 @@ def generate_executive_report(
     simulated_squad = _extract_simulated_squad_from_report_name(file_name)
 
     impact_block = ""
+    explain_impact_block = ""
+
     if simulated_squad:
         impact_image_name = f"dependency_graph_impact_{simulated_squad}.png"
         impact_image_path = output_path / impact_image_name
@@ -105,6 +185,11 @@ def generate_executive_report(
                 image_name=impact_image_name,
                 subtitle=f"Simulation of structural impact after removing {simulated_squad}.",
             )
+
+        explanation_file = output_path / f"impact_explanation_{simulated_squad}.json"
+        explanation = _read_json(explanation_file)
+        if explanation:
+            explain_impact_block = _build_explain_impact_block(explanation)
 
     html = f"""
 <!DOCTYPE html>
@@ -193,6 +278,13 @@ def generate_executive_report(
             margin-top: 24px;
         }}
 
+        .grid-1 {{
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            margin-top: 24px;
+        }}
+
         .card {{
             background: var(--white);
             border-radius: 18px;
@@ -237,6 +329,62 @@ def generate_executive_report(
             border-top: 1px solid #ECEFF3;
         }}
 
+        .explain-grid {{
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 18px;
+        }}
+
+        .explain-item {{
+            background: #F8FAFC;
+            border: 1px solid #EDF1F5;
+            border-radius: 12px;
+            padding: 14px;
+        }}
+
+        .explain-label {{
+            font-size: 12px;
+            color: var(--mid-gray);
+            margin-bottom: 6px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }}
+
+        .explain-value {{
+            font-size: 20px;
+            font-weight: bold;
+        }}
+
+        .explain-section {{
+            margin-top: 14px;
+        }}
+
+        .explain-text {{
+            margin-top: 6px;
+            font-size: 14px;
+            line-height: 1.5;
+        }}
+
+        .explain-summary {{
+            margin-top: 18px;
+            padding: 16px;
+            border-radius: 12px;
+            background: #F8FAFC;
+            border: 1px solid #EDF1F5;
+        }}
+
+        .explain-summary p {{
+            margin: 8px 0 0;
+            line-height: 1.6;
+        }}
+
+        .muted {{
+            color: var(--mid-gray);
+            font-style: italic;
+        }}
+
         .empty {{
             color: var(--mid-gray);
             font-style: italic;
@@ -257,10 +405,18 @@ def generate_executive_report(
             .kpis {{
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }}
+
+            .explain-grid {{
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }}
         }}
 
         @media (max-width: 560px) {{
             .kpis {{
+                grid-template-columns: 1fr;
+            }}
+
+            .explain-grid {{
                 grid-template-columns: 1fr;
             }}
 
@@ -338,6 +494,10 @@ def generate_executive_report(
             )}
 
             {impact_block}
+        </div>
+
+        <div class="grid-1">
+            {explain_impact_block}
         </div>
 
         <div class="footer">
