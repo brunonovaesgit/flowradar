@@ -73,7 +73,7 @@ def _build_explain_impact_block(explanation: dict) -> str:
         return f"""
         <section class="card">
             <h2>Explain Impact</h2>
-            <p class="section-subtitle">Why this squad is structurally critical.</p>
+            <p class="section-subtitle">Impact analysis unavailable.</p>
             <p class="empty">{explanation["error"]}</p>
         </section>
         """
@@ -81,18 +81,80 @@ def _build_explain_impact_block(explanation: dict) -> str:
     squad = explanation.get("squad", "-")
     direct_dependents = explanation.get("direct_dependents", [])
     direct_dependencies = explanation.get("direct_dependencies", [])
-    in_degree = explanation.get("in_degree", "-")
-    out_degree = explanation.get("out_degree", "-")
-    betweenness = explanation.get("betweenness_centrality", "-")
+    in_degree = explanation.get("in_degree", 0)
+    out_degree = explanation.get("out_degree", 0)
+    betweenness = explanation.get("betweenness_centrality", 0)
     cascade_impact = explanation.get("cascade_impact", [])
-    summary = explanation.get("summary", "")
+
+    # 🔥 SCORE
+    score = (
+        float(betweenness) * 0.5 +
+        (in_degree + out_degree) * 0.2 +
+        len(cascade_impact) * 0.3
+    )
+
+    # 🔥 CLASSIFICAÇÃO
+    if score > 10:
+        level = "CRÍTICO"
+        color = "#D62728"
+    elif score > 6:
+        level = "ALTO IMPACTO"
+        color = "#F28E2B"
+    elif score > 3:
+        level = "MODERADO"
+        color = "#E3B505"
+    else:
+        level = "BAIXO"
+        color = "#2CA02C"
+
+    # 🔥 INTERPRETAÇÃO
+    insights = []
+
+    if betweenness > 0.2:
+        insights.append("Atua como ponte crítica entre múltiplas squads.")
+
+    if in_degree > out_degree:
+        insights.append("Alta dependência externa — risco de bloqueio por terceiros.")
+
+    if out_degree > in_degree:
+        insights.append("Alta responsabilidade sistêmica — múltiplas squads dependem desta.")
+
+    if len(cascade_impact) > 5:
+        insights.append("Possui alto potencial de efeito cascata na organização.")
+
+    if not insights:
+        insights.append("Impacto estrutural localizado.")
+
+    # 🔥 RECOMENDAÇÕES
+    recommendations = []
+
+    if level in ["CRÍTICO", "ALTO IMPACTO"]:
+        recommendations.append("Reduzir acoplamento estrutural (desacoplamento de dependências).")
+        recommendations.append("Criar planos de contingência para falhas.")
+        recommendations.append("Distribuir responsabilidades para outras squads.")
+    else:
+        recommendations.append("Monitorar evolução das dependências.")
+        recommendations.append("Evitar crescimento descontrolado de acoplamento.")
 
     return f"""
     <section class="card">
         <h2>Explain Impact</h2>
         <p class="section-subtitle">
-            Why <strong>{squad}</strong> is structurally relevant in the dependency network.
+            Avaliação executiva da criticidade estrutural da squad.
         </p>
+
+        <div style="margin-bottom:16px;">
+            <span style="
+                background:{color};
+                color:white;
+                padding:6px 12px;
+                border-radius:8px;
+                font-weight:bold;
+                font-size:14px;
+            ">
+                {level}
+            </span>
+        </div>
 
         <div class="explain-grid">
             <div class="explain-item">
@@ -108,29 +170,26 @@ def _build_explain_impact_block(explanation: dict) -> str:
                 <div class="explain-value">{out_degree}</div>
             </div>
             <div class="explain-item">
-                <div class="explain-label">Betweenness centrality</div>
-                <div class="explain-value">{betweenness}</div>
+                <div class="explain-label">Centralidade</div>
+                <div class="explain-value">{round(betweenness, 3)}</div>
             </div>
         </div>
 
         <div class="explain-section">
-            <div class="explain-label">Direct dependents</div>
-            <div class="explain-text">{_format_list_as_html(direct_dependents)}</div>
-        </div>
-
-        <div class="explain-section">
-            <div class="explain-label">Direct dependencies</div>
-            <div class="explain-text">{_format_list_as_html(direct_dependencies)}</div>
-        </div>
-
-        <div class="explain-section">
-            <div class="explain-label">Cascade impact</div>
-            <div class="explain-text">{_format_list_as_html(cascade_impact)}</div>
+            <div class="explain-label">Impacto em cascata</div>
+            <div class="explain-text">{len(cascade_impact)} squads potencialmente afetadas</div>
         </div>
 
         <div class="explain-summary">
-            <div class="explain-label">Executive summary</div>
-            <p>{summary}</p>
+            <div class="explain-label">Leitura executiva</div>
+            <p>{" ".join(insights)}</p>
+        </div>
+
+        <div class="explain-summary">
+            <div class="explain-label">Recomendação</div>
+            <ul>
+                {''.join(f"<li>{r}</li>" for r in recommendations)}
+            </ul>
         </div>
     </section>
     """
