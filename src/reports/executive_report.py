@@ -65,7 +65,28 @@ def _format_list_as_html(items: list[str]) -> str:
     return ", ".join(items)
 
 
-def _build_explain_impact_block(explanation: dict) -> str:
+def _lookup_structural_criticality_score(
+    structural_metrics: pd.DataFrame,
+    squad: str,
+) -> float:
+    if structural_metrics.empty or "squad" not in structural_metrics.columns:
+        return 0.0
+
+    if "structural_criticality_score" not in structural_metrics.columns:
+        return 0.0
+
+    row = structural_metrics.loc[structural_metrics["squad"] == squad]
+
+    if row.empty:
+        return 0.0
+
+    return float(row.iloc[0]["structural_criticality_score"])
+
+
+def _build_explain_impact_block(
+    explanation: dict,
+    structural_criticality_score: float = 0.0,
+) -> str:
     if not explanation:
         return ""
 
@@ -83,58 +104,62 @@ def _build_explain_impact_block(explanation: dict) -> str:
     direct_dependencies = explanation.get("direct_dependencies", [])
     in_degree = explanation.get("in_degree", 0)
     out_degree = explanation.get("out_degree", 0)
-    betweenness = explanation.get("betweenness_centrality", 0)
+    betweenness = float(explanation.get("betweenness_centrality", 0.0))
     cascade_impact = explanation.get("cascade_impact", [])
 
-    # 🔥 SCORE
+    cascade_count = len(cascade_impact)
+    cascade_score = min(cascade_count / 10.0, 1.0)
+
     score = (
-        float(betweenness) * 0.5 +
-        (in_degree + out_degree) * 0.2 +
-        len(cascade_impact) * 0.3
+        float(structural_criticality_score) * 0.6 +
+        cascade_score * 0.4
     )
 
-    # 🔥 CLASSIFICAÇÃO
-    if score > 10:
+    if score >= 0.8:
         level = "CRÍTICO"
         color = "#D62728"
-    elif score > 6:
+    elif score >= 0.6:
         level = "ALTO IMPACTO"
         color = "#F28E2B"
-    elif score > 3:
+    elif score >= 0.4:
         level = "MODERADO"
         color = "#E3B505"
     else:
         level = "BAIXO"
         color = "#2CA02C"
 
-    # 🔥 INTERPRETAÇÃO
-    insights = []
+    insights: list[str] = []
 
-    if betweenness > 0.2:
-        insights.append("Atua como ponte crítica entre múltiplas squads.")
+    if structural_criticality_score >= 0.8:
+        insights.append("A squad ocupa posição estrutural crítica na rede.")
 
-    if in_degree > out_degree:
+    if betweenness > 0.10:
+        insights.append("Atua como ponte relevante entre diferentes partes do fluxo.")
+
+    if in_degree >= out_degree and in_degree >= 5:
         insights.append("Alta dependência externa — risco de bloqueio por terceiros.")
 
-    if out_degree > in_degree:
+    if out_degree > in_degree and out_degree >= 5:
         insights.append("Alta responsabilidade sistêmica — múltiplas squads dependem desta.")
 
-    if len(cascade_impact) > 5:
+    if cascade_count >= 5:
         insights.append("Possui alto potencial de efeito cascata na organização.")
 
     if not insights:
-        insights.append("Impacto estrutural localizado.")
+        insights.append("Impacto estrutural mais localizado e controlado.")
 
-    # 🔥 RECOMENDAÇÕES
-    recommendations = []
+    recommendations: list[str] = []
 
     if level in ["CRÍTICO", "ALTO IMPACTO"]:
-        recommendations.append("Reduzir acoplamento estrutural (desacoplamento de dependências).")
-        recommendations.append("Criar planos de contingência para falhas.")
-        recommendations.append("Distribuir responsabilidades para outras squads.")
-    else:
-        recommendations.append("Monitorar evolução das dependências.")
+        recommendations.append("Reduzir acoplamento estrutural entre squads.")
+        recommendations.append("Criar contingência operacional para falhas ou atrasos.")
+        recommendations.append("Distribuir responsabilidades hoje concentradas nessa squad.")
+    elif level == "MODERADO":
+        recommendations.append("Monitorar a evolução das dependências ao longo do tempo.")
         recommendations.append("Evitar crescimento descontrolado de acoplamento.")
+    else:
+        recommendations.append("Manter monitoramento contínuo da criticidade estrutural.")
+        recommendations.append("Preservar autonomia e evitar centralização futura.")
 
     return f"""
     <section class="card">
@@ -175,9 +200,38 @@ def _build_explain_impact_block(explanation: dict) -> str:
             </div>
         </div>
 
+        <div class="explain-grid">
+            <div class="explain-item">
+                <div class="explain-label">Criticality score</div>
+                <div class="explain-value">{round(structural_criticality_score, 3)}</div>
+            </div>
+            <div class="explain-item">
+                <div class="explain-label">Cascade impact</div>
+                <div class="explain-value">{cascade_count}</div>
+            </div>
+            <div class="explain-item">
+                <div class="explain-label">Explain score</div>
+                <div class="explain-value">{round(score, 3)}</div>
+            </div>
+            <div class="explain-item">
+                <div class="explain-label">Dependents</div>
+                <div class="explain-value">{len(direct_dependents)}</div>
+            </div>
+        </div>
+
+        <div class="explain-section">
+            <div class="explain-label">Direct dependents</div>
+            <div class="explain-text">{_format_list_as_html(direct_dependents)}</div>
+        </div>
+
+        <div class="explain-section">
+            <div class="explain-label">Direct dependencies</div>
+            <div class="explain-text">{_format_list_as_html(direct_dependencies)}</div>
+        </div>
+
         <div class="explain-section">
             <div class="explain-label">Impacto em cascata</div>
-            <div class="explain-text">{len(cascade_impact)} squads potencialmente afetadas</div>
+            <div class="explain-text">{cascade_count} squads potencialmente afetadas</div>
         </div>
 
         <div class="explain-summary">
@@ -247,8 +301,17 @@ def generate_executive_report(
 
         explanation_file = output_path / f"impact_explanation_{simulated_squad}.json"
         explanation = _read_json(explanation_file)
+
         if explanation:
-            explain_impact_block = _build_explain_impact_block(explanation)
+            structural_score = _lookup_structural_criticality_score(
+                structural_metrics=structural_metrics,
+                squad=simulated_squad,
+            )
+
+            explain_impact_block = _build_explain_impact_block(
+                explanation=explanation,
+                structural_criticality_score=structural_score,
+            )
 
     html = f"""
 <!DOCTYPE html>
