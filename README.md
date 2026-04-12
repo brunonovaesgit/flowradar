@@ -150,26 +150,35 @@ FlowRadar expects three CSV files.
 
 They must be placed in one of these directories:
 
+```bash
 data/raw/example/
+```
 
 or
 
+``` bash
 data/raw/prod/
-Example mode file names
+```
+
+## Example mode file names
 
 Inside data/raw/example/, use:
 
+```bash
 example_work_items.csv
 example_relationships.csv
 example_team_mapping.csv
+```
 
 Production mode file names
 
 Inside data/raw/prod/, use:
 
+```bash
 work_items.csv
 relationships.csv
 team_mapping.csv
+```
 
 ---
 
@@ -179,13 +188,15 @@ team_mapping.csv
 
 Required columns:
 
+```bash
 item_id, team
+```
 
 Rules:
 
-item_id must be unique
-team must exist in team_mapping.csv
-null values are not allowed
+- item_id must be unique
+- team must exist in team_mapping.csv
+- null values are not allowed
 
 ---
 
@@ -193,12 +204,14 @@ null values are not allowed
 
 Required columns:
 
+```bash
 source_item, target_item
+```
 
 Rules:
 
-both items must exist in work_items.csv
-null values are not allowed
+- both items must exist in work_items.csv
+- null values are not allowed
 
 ---
 
@@ -206,12 +219,14 @@ null values are not allowed
 
 Required columns:
 
+```bash
 team, cluster, tribe
+```
 
 Rules:
 
-team must be unique
-all teams must match the teams referenced in work_items.csv
+- team must be unique
+- all teams must match the teams referenced in work_items.csv
 
 ---
 
@@ -219,54 +234,68 @@ all teams must match the teams referenced in work_items.csv
 
 Before execution, FlowRadar validates:
 
-Structural validation
-required columns
-empty files
-null values
-Referential integrity
-relationships.source_item → work_items.item_id
-relationships.target_item → work_items.item_id
-work_items.team → team_mapping.team
-Non-blocking warnings
-duplicate relationships
-self-dependencies
-unused teams
+**Structural validation**
+- required columns
+- empty files
+- null values
+
+**Referential integrity**
+- relationships.source_item → work_items.item_id
+- relationships.target_item → work_items.item_id
+- work_items.team → team_mapping.team
+
+**Non-blocking warnings**
+- duplicate relationships
+- self-dependencies
+- unused teams
 
 If validation fails, execution is interrupted.
 
 ---
 
-## How to Run
-1. Run with example data
+# How to Run
+
+## 1. Run with example data
+```python
 python run_flowradar.py --mode example
-2. Run with production data
+```
+
+## 2. Run with production data
+```python
 python run_flowradar.py --mode prod
-3. Run with a custom directory
+```
+
+## 3. Run with a custom directory
+```python
 python run_flowradar.py --input ./data/raw/prod
+```
 
 ---
 
 ## How to Run a Simulation
 
 To simulate the removal of a squad:
-
+```python
 python run_flowradar.py --mode example --simulate-squad SQD-DAD
+```
 
 Replace SQD-DAD with the squad you want to simulate.
 
 Example:
-
+```python
 python run_flowradar.py --mode example --simulate-squad SQD-APP
+```
 
 ---
 
 ## How to Run Multiple Simulations
 
 Example:
-
+```python
 python run_flowradar.py --mode example --simulate-squad SQD-DAD
 python run_flowradar.py --mode example --simulate-squad SQD-APP
 python run_flowradar.py --mode example --simulate-squad SQD-AUTH
+```
 
 Each simulation generates its own files, without overwriting the others.
 
@@ -275,46 +304,57 @@ Each simulation generates its own files, without overwriting the others.
 ## How to Compare Simulations
 
 After generating two or more simulations, run:
-
+```python
 python compare_simulations.py
+```
 
 This will compare all files that match:
-
+```bash
 impact_simulation_*.json
+```
 
 and generate a consolidated comparison.
 
 ---
 
-Output Files
+## Output Files
 
 All outputs are generated in:
-
+```bash
 data/outputs/
+```
 
 ---
 
 ## Baseline Outputs
 
-Generated in normal execution:
+**Generated in normal execution:**
 
-structural_metrics.csv
+- structural_metrics.csv
 Ranking of squads by structural criticality
-risk_analysis.csv
+
+- risk_analysis.csv
 Ranking of squads by organizational risk
-squad_relationships.csv
+
+- squad_relationships.csv
 Expanded table of squad-to-squad relationships
-dependency_matrix.csv
+
+- dependency_matrix.csv
 Matrix of dependencies between squads
-dependency_heatmap.png
+
+- dependency_heatmap.png
 Heatmap of dependencies
-dependency_graph.png
+
+- dependency_graph.png
 Executive dependency graph
-criticality_ranking.png
+
+- criticality_ranking.png
 Visual ranking of structural criticality
-summary.json
+
+- summary.json
 Executive summary
-flowradar_report.html
+
+- flowradar_report.html
 Executive HTML report for the baseline scenario
 
 ---
@@ -325,13 +365,16 @@ Generated only when --simulate-squad is used.
 
 Example for SQD-DAD:
 
-impact_simulation_SQD-DAD.json
+- impact_simulation_SQD-DAD.json
 Raw result of the simulation
-dependency_graph_impact_SQD-DAD.png
+
+- dependency_graph_impact_SQD-DAD.png
 Graph showing the structural effect of the simulated removal
-impact_explanation_SQD-DAD.json
+
+- impact_explanation_SQD-DAD.json
 Explain Impact output
-flowradar_report_simulation_SQD-DAD.html
+
+- flowradar_report_simulation_SQD-DAD.html
 Executive HTML report for that simulated scenario
 
 ---
@@ -340,11 +383,13 @@ Executive HTML report for that simulated scenario
 
 Generated by compare_simulations.py:
 
-simulation_comparison.csv
+- simulation_comparison.csv
 Table comparing all simulated scenarios
-simulation_comparison_summary.json
+
+- simulation_comparison_summary.json
 Summary of the comparison
-simulation_comparison.png
+
+- simulation_comparison.png
 Visual ranking of the most disruptive simulated removals
 
 ---
@@ -356,16 +401,16 @@ Use this file to identify which squads are structurally critical.
 
 Main columns:
 
-dependencies_received_in_degree
-dependencies_generated_out_degree
-betweenness_centrality
-pagerank
-structural_criticality_score
+- dependencies_received_in_degree
+- dependencies_generated_out_degree
+- betweenness_centrality
+- pagerank
+- structural_criticality_score
 
 Interpretation:
 
-higher structural_criticality_score means higher structural relevance
-squads at the top are likely bottlenecks or critical hubs
+- higher structural_criticality_score means higher structural relevance
+- squads at the top are likely bottlenecks or critical hubs
 
 ---
 
