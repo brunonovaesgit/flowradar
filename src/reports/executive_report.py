@@ -83,9 +83,22 @@ def _lookup_structural_criticality_score(
     return float(row.iloc[0]["structural_criticality_score"])
 
 
+def _normalize_impact_score(raw_impact_score: float) -> float:
+    """
+    Normaliza o impact_score para faixa 0..1.
+    Como os cenários atuais estão ficando por volta de 0.5,
+    usamos clamp em 1.0 para manter leitura executiva simples.
+    """
+    if raw_impact_score <= 0:
+        return 0.0
+
+    return min(raw_impact_score, 1.0)
+
+
 def _build_explain_impact_block(
     explanation: dict,
     structural_criticality_score: float = 0.0,
+    simulated_impact_score: float = 0.0,
 ) -> str:
     if not explanation:
         return ""
@@ -109,19 +122,21 @@ def _build_explain_impact_block(
 
     cascade_count = len(cascade_impact)
     cascade_score = min(cascade_count / 10.0, 1.0)
+    impact_score_normalized = _normalize_impact_score(simulated_impact_score)
 
-    score = (
-        float(structural_criticality_score) * 0.6 +
-        cascade_score * 0.4
+    explain_score = (
+        float(structural_criticality_score) * 0.5
+        + cascade_score * 0.2
+        + impact_score_normalized * 0.3
     )
 
-    if score >= 0.8:
+    if explain_score >= 0.8:
         level = "CRÍTICO"
         color = "#D62728"
-    elif score >= 0.6:
+    elif explain_score >= 0.6:
         level = "ALTO IMPACTO"
         color = "#F28E2B"
-    elif score >= 0.4:
+    elif explain_score >= 0.4:
         level = "MODERADO"
         color = "#E3B505"
     else:
@@ -132,6 +147,9 @@ def _build_explain_impact_block(
 
     if structural_criticality_score >= 0.8:
         insights.append("A squad ocupa posição estrutural crítica na rede.")
+
+    if impact_score_normalized >= 0.5:
+        insights.append("A remoção simulada gera disrupção sistêmica relevante.")
 
     if betweenness > 0.10:
         insights.append("Atua como ponte relevante entre diferentes partes do fluxo.")
@@ -206,16 +224,16 @@ def _build_explain_impact_block(
                 <div class="explain-value">{round(structural_criticality_score, 3)}</div>
             </div>
             <div class="explain-item">
+                <div class="explain-label">Simulation impact</div>
+                <div class="explain-value">{round(simulated_impact_score, 3)}</div>
+            </div>
+            <div class="explain-item">
                 <div class="explain-label">Cascade impact</div>
                 <div class="explain-value">{cascade_count}</div>
             </div>
             <div class="explain-item">
                 <div class="explain-label">Explain score</div>
-                <div class="explain-value">{round(score, 3)}</div>
-            </div>
-            <div class="explain-item">
-                <div class="explain-label">Dependents</div>
-                <div class="explain-value">{len(direct_dependents)}</div>
+                <div class="explain-value">{round(explain_score, 3)}</div>
             </div>
         </div>
 
@@ -302,6 +320,10 @@ def generate_executive_report(
         explanation_file = output_path / f"impact_explanation_{simulated_squad}.json"
         explanation = _read_json(explanation_file)
 
+        simulation_file = output_path / f"impact_simulation_{simulated_squad}.json"
+        simulation_result = _read_json(simulation_file)
+        simulated_impact_score = float(simulation_result.get("impact_score", 0.0))
+
         if explanation:
             structural_score = _lookup_structural_criticality_score(
                 structural_metrics=structural_metrics,
@@ -311,6 +333,7 @@ def generate_executive_report(
             explain_impact_block = _build_explain_impact_block(
                 explanation=explanation,
                 structural_criticality_score=structural_score,
+                simulated_impact_score=simulated_impact_score,
             )
 
     html = f"""
