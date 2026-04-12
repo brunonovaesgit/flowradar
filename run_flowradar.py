@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import networkx as nx
 import pandas as pd
 
 from src.pipeline.validation import validate_minimum_data
@@ -20,6 +21,9 @@ from src.metrics.network_centrality import (
 from src.metrics.risk_analysis import (
     calculate_risk_analysis,
     export_risk_analysis,
+)
+from src.reports.executive_report import (
+    generate_executive_report,
 )
 from src.visualizations.dependency_heatmap import (
     build_dependency_matrix,
@@ -41,38 +45,12 @@ from src.simulations.impact_simulation import (
 # ==========================================================
 # FLOWRADAR - ENTRY POINT
 # ==========================================================
-#
-# Este é o ponto único de execução do FlowRadar.
-#
-# Exemplos de uso:
-#
-# 1) Rodar com dados de exemplo:
-#    python run_flowradar.py --mode example
-#
-# 2) Rodar com dados reais:
-#    python run_flowradar.py --mode prod
-#
-# 3) Rodar apontando um diretório manualmente:
-#    python run_flowradar.py --input ./data/raw/example
-#
-# 4) Rodar com simulação de impacto:
-#    python run_flowradar.py --mode example --simulate-squad "Squad B"
-#
-# ==========================================================
 
 
 def resolve_input_directory(
     input_dir: str | None,
     mode: str | None,
 ) -> Path:
-    """
-    Resolve o diretório de entrada.
-
-    Prioridade:
-    1. --input
-    2. --mode
-    3. fallback para example
-    """
     if input_dir:
         return Path(input_dir)
 
@@ -83,13 +61,6 @@ def resolve_input_directory(
 
 
 def expected_file_names_for_directory(input_path: Path) -> dict[str, str]:
-    """
-    Define os nomes de arquivos esperados para o diretório informado.
-
-    Convenção:
-    - pasta example  -> arquivos com prefixo example_
-    - pasta prod     -> arquivos sem prefixo
-    """
     if input_path.name == "example":
         return {
             "work_items": "example_work_items.csv",
@@ -105,9 +76,6 @@ def expected_file_names_for_directory(input_path: Path) -> dict[str, str]:
 
 
 def validate_input_directory_exists(input_path: Path) -> None:
-    """
-    Garante que o diretório de entrada exista e seja realmente uma pasta.
-    """
     if not input_path.exists():
         raise FileNotFoundError(
             f"Diretório de entrada não encontrado: {input_path}"
@@ -120,9 +88,6 @@ def validate_input_directory_exists(input_path: Path) -> None:
 
 
 def validate_required_input_files(input_path: Path) -> dict[str, Path]:
-    """
-    Garante que os arquivos obrigatórios existam no diretório de entrada.
-    """
     expected_files = expected_file_names_for_directory(input_path)
 
     resolved_files = {
@@ -147,9 +112,6 @@ def validate_required_input_files(input_path: Path) -> dict[str, Path]:
 
 
 def load_raw_input_data(input_path: Path) -> dict[str, pd.DataFrame]:
-    """
-    Carrega os arquivos CSV de entrada do FlowRadar.
-    """
     resolved_files = validate_required_input_files(input_path)
 
     work_items = pd.read_csv(
@@ -176,9 +138,6 @@ def generate_summary(
     structural_metrics_table: pd.DataFrame,
     squad_relationships_table: pd.DataFrame,
 ) -> dict:
-    """
-    Gera um resumo executivo simples da execução.
-    """
     if structural_metrics_table.empty:
         return {
             "total_squads": 0,
@@ -198,9 +157,6 @@ def generate_summary(
 
 
 def save_summary(summary_data: dict, output_file: Path) -> None:
-    """
-    Salva o summary executivo em JSON.
-    """
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
     with output_file.open("w", encoding="utf-8") as file:
@@ -208,18 +164,12 @@ def save_summary(summary_data: dict, output_file: Path) -> None:
 
 
 def print_execution_header(input_path: Path, output_path: Path) -> None:
-    """
-    Imprime o cabeçalho de execução.
-    """
     print("\n[FlowRadar] Iniciando processamento...\n")
     print(f"[FlowRadar] Diretório de entrada : {input_path.resolve()}")
     print(f"[FlowRadar] Diretório de outputs : {output_path.resolve()}\n")
 
 
 def print_execution_success(output_path: Path) -> None:
-    """
-    Imprime mensagem final de sucesso.
-    """
     print("\n[FlowRadar] 🚀 Processamento concluído com sucesso")
     print(f"[FlowRadar] Outputs gerados em: {output_path.resolve()}\n")
 
@@ -228,9 +178,6 @@ def print_top_structural_ranking(
     structural_metrics_table: pd.DataFrame,
     top_n: int = 5,
 ) -> None:
-    """
-    Imprime no terminal o ranking das squads por criticidade estrutural.
-    """
     if structural_metrics_table.empty:
         print("[FlowRadar] ⚠ Nenhuma métrica estrutural disponível para ranking")
         return
@@ -252,9 +199,6 @@ def print_top_risk_analysis(
     risk_analysis_table: pd.DataFrame,
     top_n: int = 5,
 ) -> None:
-    """
-    Imprime no terminal o ranking das squads por risco organizacional.
-    """
     if risk_analysis_table.empty:
         print("[FlowRadar] ⚠ Nenhuma análise de risco disponível")
         return
@@ -264,9 +208,7 @@ def print_top_risk_analysis(
         squad = row["squad"]
         score = row["risk_score"]
         category = row["risk_category"]
-        print(
-            f"  - {squad} | score={score:.3f} | tipo={category}"
-        )
+        print(f"  - {squad} | score={score:.3f} | tipo={category}")
     print()
 
 
@@ -275,10 +217,6 @@ def export_criticality_ranking_visual(
     output_file: Path,
     top_n: int = 10,
 ) -> None:
-    """
-    Gera gráfico horizontal com ranking de criticidade estrutural
-    padronizado com a identidade visual do FlowRadar.
-    """
     if structural_metrics_table.empty:
         return
 
@@ -339,6 +277,91 @@ def export_criticality_ranking_visual(
     plt.close()
 
 
+# ==========================================================
+# EXPLAIN IMPACT ENGINE
+# ==========================================================
+
+
+def build_impact_summary(
+    squad: str,
+    direct_dependents: list[str],
+    direct_dependencies: list[str],
+    in_degree: int,
+    out_degree: int,
+    betweenness_score: float,
+) -> str:
+    return (
+        f"{squad} has {in_degree} incoming dependencies "
+        f"(other squads depend on it) and {out_degree} outgoing dependencies. "
+        f"It directly impacts {len(direct_dependents)} squads and depends on "
+        f"{len(direct_dependencies)} squads. "
+        f"Its betweenness centrality is {betweenness_score:.4f}, indicating how much "
+        f"it influences the overall flow of the network."
+    )
+
+
+def explain_squad_impact(
+    dependency_graph: nx.DiGraph,
+    squad: str,
+) -> dict:
+    """
+    Explica por que uma squad é estruturalmente crítica.
+    """
+    if squad not in dependency_graph:
+        return {
+            "squad": squad,
+            "error": "Squad not found in graph.",
+        }
+
+    direct_dependents = sorted(list(dependency_graph.predecessors(squad)))
+    direct_dependencies = sorted(list(dependency_graph.successors(squad)))
+
+    in_degree = dependency_graph.in_degree(squad)
+    out_degree = dependency_graph.out_degree(squad)
+
+    betweenness = nx.betweenness_centrality(dependency_graph.to_undirected())
+    betweenness_score = float(betweenness.get(squad, 0.0))
+
+    cascade_impact = set()
+    for dependent in direct_dependents:
+        cascade_impact.update(list(dependency_graph.predecessors(dependent)))
+
+    cascade_impact.discard(squad)
+
+    explanation = {
+        "squad": squad,
+        "direct_dependents": direct_dependents,
+        "direct_dependencies": direct_dependencies,
+        "in_degree": int(in_degree),
+        "out_degree": int(out_degree),
+        "betweenness_centrality": round(betweenness_score, 4),
+        "cascade_impact": sorted(list(cascade_impact)),
+        "summary": build_impact_summary(
+            squad=squad,
+            direct_dependents=direct_dependents,
+            direct_dependencies=direct_dependencies,
+            in_degree=in_degree,
+            out_degree=out_degree,
+            betweenness_score=betweenness_score,
+        ),
+    }
+
+    return explanation
+
+
+def export_impact_explanation(
+    explanation: dict,
+    output_file: str | Path,
+) -> Path:
+    output_path = Path(output_file)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with output_path.open("w", encoding="utf-8") as file:
+        json.dump(explanation, file, ensure_ascii=False, indent=2)
+
+    return output_path
+
+
 def main(
     input_dir: str | None = None,
     mode: str | None = None,
@@ -356,9 +379,7 @@ def main(
         output_path=output_path,
     )
 
-    # ------------------------------------------------------
     # 1. VALIDAÇÃO DO DIRETÓRIO DE ENTRADA
-    # ------------------------------------------------------
     try:
         validate_input_directory_exists(input_path)
         print("[FlowRadar] ✔ Diretório de entrada validado")
@@ -367,9 +388,7 @@ def main(
         print(f"Motivo: {error}")
         return
 
-    # ------------------------------------------------------
     # 2. LEITURA DOS DADOS
-    # ------------------------------------------------------
     try:
         raw_data = load_raw_input_data(input_path)
         print("[FlowRadar] ✔ Arquivos obrigatórios encontrados e carregados")
@@ -390,9 +409,7 @@ def main(
     relationships = raw_data["relationships"]
     team_mapping = raw_data["team_mapping"]
 
-    # ------------------------------------------------------
     # 3. VALIDAÇÃO MÍNIMA
-    # ------------------------------------------------------
     minimum_validation = validate_minimum_data(raw_data)
 
     if not minimum_validation["is_valid"]:
@@ -402,9 +419,7 @@ def main(
 
     print("[FlowRadar] ✔ Dados mínimos validados")
 
-    # ------------------------------------------------------
     # 4. VALIDAÇÃO DO CONTRATO CANÔNICO
-    # ------------------------------------------------------
     contract_validation = validate_input_contract(
         work_items=work_items,
         relationships=relationships,
@@ -424,9 +439,7 @@ def main(
             print(f"  - {warning}")
         print()
 
-    # ------------------------------------------------------
     # 5. TABELA DE RELAÇÕES ENTRE SQUADS
-    # ------------------------------------------------------
     squad_relationships = build_squad_relationships_table(
         work_items=work_items,
         relationships=relationships,
@@ -441,18 +454,14 @@ def main(
     print("[FlowRadar] ✔ Relações entre squads preparadas")
     print("[FlowRadar] ✔ squad_relationships.csv gerado")
 
-    # ------------------------------------------------------
     # 6. CONSTRUÇÃO DO GRAFO DE DEPENDÊNCIAS
-    # ------------------------------------------------------
     dependency_graph = build_dependency_graph(
         squad_relationships_table=squad_relationships
     )
 
     print("[FlowRadar] ✔ Grafo organizacional construído")
 
-    # ------------------------------------------------------
     # 7. MÉTRICAS ESTRUTURAIS
-    # ------------------------------------------------------
     structural_metrics = calculate_and_export_structural_metrics(
         dependency_graph=dependency_graph,
         output_file=output_path / "structural_metrics.csv",
@@ -473,9 +482,7 @@ def main(
 
     print("[FlowRadar] ✔ Ranking de criticidade gerado")
 
-    # ------------------------------------------------------
     # 8. ANÁLISE DE RISCO ORGANIZACIONAL
-    # ------------------------------------------------------
     risk_analysis = calculate_risk_analysis(
         dependency_graph=dependency_graph,
         structural_metrics_table=structural_metrics,
@@ -493,9 +500,7 @@ def main(
         top_n=5,
     )
 
-    # ------------------------------------------------------
     # 9. GRAFO VISUAL
-    # ------------------------------------------------------
     export_dependency_graph_visual(
         dependency_graph=dependency_graph,
         output_file=output_path / "dependency_graph.png",
@@ -504,9 +509,7 @@ def main(
 
     print("[FlowRadar] ✔ Grafo visual gerado")
 
-    # ------------------------------------------------------
     # 10. MATRIZ DE DEPENDÊNCIAS + HEATMAP
-    # ------------------------------------------------------
     dependency_matrix = build_dependency_matrix(
         squad_relationships_table=squad_relationships
     )
@@ -524,9 +527,7 @@ def main(
 
     print("[FlowRadar] ✔ Heatmap gerado")
 
-    # ------------------------------------------------------
     # 11. SUMMARY EXECUTIVO
-    # ------------------------------------------------------
     summary = generate_summary(
         structural_metrics_table=structural_metrics,
         squad_relationships_table=squad_relationships,
@@ -539,10 +540,15 @@ def main(
 
     print("[FlowRadar] ✔ Summary gerado")
 
-    # ------------------------------------------------------
     # 12. SIMULAÇÃO OPCIONAL DE IMPACTO
-    # ------------------------------------------------------
+    report_filename = "flowradar_report.html"
+
     if simulate_squad:
+        impact_json_file = output_path / f"impact_simulation_{simulate_squad}.json"
+        impact_graph_file = output_path / f"dependency_graph_impact_{simulate_squad}.png"
+        impact_explanation_file = output_path / f"impact_explanation_{simulate_squad}.json"
+        report_filename = f"flowradar_report_simulation_{simulate_squad}.html"
+
         simulation_result = simulate_squad_removal_impact(
             dependency_graph=dependency_graph,
             squad_to_remove=simulate_squad,
@@ -550,7 +556,7 @@ def main(
 
         export_simulation_result(
             simulation_result=simulation_result,
-            output_file=output_path / "impact_simulation.json",
+            output_file=impact_json_file,
         )
 
         from src.graph_builder.prepare_dependency_network import (
@@ -560,18 +566,37 @@ def main(
         export_impact_graph_visual(
             dependency_graph=dependency_graph,
             removed_squad=simulate_squad,
-            output_file=output_path / "dependency_graph_impact.png",
+            output_file=impact_graph_file,
             structural_metrics_table=structural_metrics,
+        )
+
+        explanation = explain_squad_impact(
+            dependency_graph=dependency_graph,
+            squad=simulate_squad,
+        )
+
+        export_impact_explanation(
+            explanation=explanation,
+            output_file=impact_explanation_file,
         )
 
         print(
             f"[FlowRadar] ✔ Simulação de impacto executada para a squad: {simulate_squad}"
         )
         print("[FlowRadar] ✔ Grafo de impacto gerado")
+        print("[FlowRadar] ✔ Explain Impact gerado")
+        print("[FlowRadar] 🧠 Explain Impact:")
+        print(f"  - {explanation['summary']}")
+        print()
 
-    # ------------------------------------------------------
-    # 13. FINALIZAÇÃO
-    # ------------------------------------------------------
+    # 13. RELATÓRIO EXECUTIVO HTML
+    report_file = generate_executive_report(
+        output_path,
+        file_name=report_filename,
+    )
+    print(f"[FlowRadar] ✔ Relatório executivo gerado: {report_file.resolve()}")
+
+    # 14. FINALIZAÇÃO
     print_execution_success(output_path=output_path)
 
 

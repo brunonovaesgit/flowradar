@@ -44,7 +44,24 @@ def _image_block(title: str, image_name: str, subtitle: str = "") -> str:
     """
 
 
-def generate_executive_report(output_dir: str | Path) -> Path:
+def _extract_simulated_squad_from_report_name(file_name: str) -> str | None:
+    """
+    Extrai a squad do nome do relatório, se ele seguir o padrão:
+    flowradar_report_simulation_<SQUAD>.html
+    """
+    prefix = "flowradar_report_simulation_"
+    suffix = ".html"
+
+    if file_name.startswith(prefix) and file_name.endswith(suffix):
+        return file_name[len(prefix):-len(suffix)]
+
+    return None
+
+
+def generate_executive_report(
+    output_dir: str | Path,
+    file_name: str = "flowradar_report.html",
+) -> Path:
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
@@ -75,15 +92,19 @@ def generate_executive_report(output_dir: str | Path) -> Path:
     top_bottleneck = summary.get("top_bottleneck", "-")
     top_bottleneck_score = summary.get("top_bottleneck_score", "-")
 
-    impact_graph_exists = (output_path / "dependency_graph_impact.png").exists()
+    simulated_squad = _extract_simulated_squad_from_report_name(file_name)
 
     impact_block = ""
-    if impact_graph_exists:
-        impact_block = _image_block(
-            title="Impact Simulation",
-            image_name="dependency_graph_impact.png",
-            subtitle="Simulation of structural impact after removing a selected squad.",
-        )
+    if simulated_squad:
+        impact_image_name = f"dependency_graph_impact_{simulated_squad}.png"
+        impact_image_path = output_path / impact_image_name
+
+        if impact_image_path.exists():
+            impact_block = _image_block(
+                title="Impact Simulation",
+                image_name=impact_image_name,
+                subtitle=f"Simulation of structural impact after removing {simulated_squad}.",
+            )
 
     html = f"""
 <!DOCTYPE html>
@@ -327,7 +348,7 @@ def generate_executive_report(output_dir: str | Path) -> Path:
 </html>
 """
 
-    report_file = output_path / "flowradar_report.html"
+    report_file = output_path / file_name
     report_file.write_text(html, encoding="utf-8")
 
     return report_file
