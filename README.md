@@ -1,661 +1,216 @@
 # FlowRadar
 
-FlowRadar is a data-driven framework for analyzing organizational flow and structural dependencies across squads, clusters, and tribes.
-
-It transforms raw operational data into a systemic view of bottlenecks, structural criticality, organizational risk, and simulated disruption scenarios.
-
----
-
-## What is FlowRadar?
-
-FlowRadar is designed to answer questions that traditional agile metrics alone cannot:
-
-- Where are the real bottlenecks in the organization?
-- Which squads concentrate structural risk?
-- How do dependencies affect systemic resilience?
-- What happens if a critical squad is removed from the network?
-- Why is a squad structurally critical?
-- Which simulated scenario is more disruptive?
-
-Instead of focusing only on delivery metrics such as lead time or throughput, FlowRadar models the organization as a dependency network and analyzes it from a systemic perspective.
+> Seu time não é lento.  
+> Seu fluxo está preso.
 
 ---
 
-## What FlowRadar does
+A maioria das organizações mede velocidade.
 
-FlowRadar can:
+- Lead time  
+- Throughput  
+- WIP  
 
-- build a dependency graph from raw CSV data
-- validate the integrity of input data before execution
-- calculate structural metrics for squads
-- rank squads by structural criticality
-- generate dependency heatmaps and executive graphs
-- calculate organizational risk
-- simulate the removal of a squad
-- explain why a squad is critical
-- compare multiple simulation scenarios
-- generate executive HTML reports
+E mesmo assim… continuam lentas.
+
+O problema não está nessas métricas.
+
+Está no que elas **não mostram**.
 
 ---
 
-## Core Concepts
+## 🧠 O problema invisível
 
-### Dependency Graph
-Squads are modeled as nodes, and dependencies are modeled as directed edges.
+Times não trabalham isolados.
 
-### Structural Criticality
-A synthetic score that combines:
-- in-degree
-- betweenness centrality
-- PageRank
+Eles dependem uns dos outros.
 
-This score identifies squads that concentrate structural influence and bottleneck potential.
+E essas dependências:
 
-### Organizational Risk
-A complementary score that highlights squads with high systemic exposure.
+- criam filas invisíveis  
+- espalham atraso pelo sistema  
+- distorcem métricas  
+- tornam previsões inúteis  
 
-### Impact Simulation
-Simulates the structural effect of removing a squad from the dependency graph.
+Você não tem um problema de execução.
 
-### Explain Impact
-Generates a human-readable explanation for why a squad is considered critical.
-
-### Simulation Comparison
-Compares multiple simulated removals and ranks which scenarios generate greater systemic disruption.
+Você tem um problema de **estrutura de fluxo**.
 
 ---
 
-## Current Features
+## 🔍 O que o FlowRadar faz
 
-- Build dependency networks from raw data
-- Validate input model integrity
-- Calculate:
-  - In-degree / Out-degree
-  - Betweenness Centrality
-  - PageRank
-  - Structural Criticality Score
-  - Organizational Risk Score
-- Generate:
-  - Dependency matrix
-  - Heatmap
-  - Executive dependency graph
-  - Criticality ranking chart
-  - Executive HTML report
-- Simulate removal of a squad
-- Explain impact of a simulated squad
-- Compare multiple simulation scenarios
-- Export outputs in:
-  - CSV
-  - JSON
-  - PNG
-  - HTML
+O FlowRadar trata sua organização como ela realmente funciona:
+
+> uma rede de dependências
+
+Ele permite:
+
+- mapear quem depende de quem  
+- identificar gargalos sistêmicos  
+- medir impacto estrutural (não só esforço)  
+- simular mudanças antes de aplicá-las  
+- visualizar o fluxo de forma objetiva  
 
 ---
 
-## Project Structure
+## ⚙️ Como funciona (em alto nível)
+
+1. Você fornece dados de trabalho (issues, dependências, fluxos)
+2. O FlowRadar constrói uma rede
+3. Aplica métricas de rede (centralidade, impacto, fragilidade)
+4. Gera análises e simulações
+
+---
+
+## 🚀 Instalação
+
+### 1. Clone do repositório 
 
 ```bash
-flowradar/
-├── run_flowradar.py
-├── compare_simulations.py
-├── requirements.txt
+git clone https://github.com/brunonovaesgit/flowradar.git
+cd flowradar
+```
+
+> Antes de rodar o clone, escolha a pasta onde você quer salvar o projeto localmente.
+
+---
+
+### 2. Ambiente virtual
+
+```bash
+python3 -m venv venv
+source venv/bin/activate  # Linux / Mac
+
+# ou
+venv\Scripts\activate     # Windows
+```
+
+---
+
+### 3. Dependências
+```bash
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+```
+
+---
+
+▶️ Execução
+
+Rodar análise principal:
+```bash
+python run_flowradar.py
+```
+
+Simulações de impacto: 
+```bash
+python compare_simulations.py
+```
+
+---
+
+🧪 Testes
+
+Rodar todos os testes:
+```bash
+pytest
+```
+
+Rodar com mais detalhes: 
+```bash
+pytest -vv
+```
+
+📊 O que você recebe
+
+Dependendo do cenário, o FlowRadar gera:
+
+rede de dependências (graph.json)
+ranking de impacto (quem realmente importa no fluxo)
+heatmaps de concentração de dependências
+simulações de remoção ou alteração de squads
+explicações estruturais do comportamento do sistema
+
+---
+
+📈 O que você começa a enxergar
+
+Depois de usar o FlowRadar, algumas coisas ficam óbvias:
+
+por que features ficam presas por semanas
+por que dividir histórias nem sempre resolve
+por que alguns times “sempre atrasam”
+por que métricas boas não significam fluxo saudável
+
+---
+
+⚠️ O desconforto necessário
+
+O FlowRadar não vai te dar respostas confortáveis.
+
+Ele pode mostrar que:
+
+o problema não é o time
+o problema não é o processo
+o problema é a forma como o trabalho está organizado
+
+---
+
+📊 Estrutura do projeto
+
+```bash
+.
 ├── src/
+│   ├── analysis/
 │   ├── graph_builder/
 │   ├── metrics/
 │   ├── pipeline/
 │   ├── reports/
 │   ├── simulations/
 │   └── visualizations/
+│
+├── tests/
 ├── data/
-│   ├── raw/
-│   │   ├── example/
-│   │   └── prod/
-│   └── outputs/
-└── tests/
+│
+├── run_flowradar.py
+├── compare_simulations.py
+│
+├── requirements.txt
+├── requirements-dev.txt
+├── pytest.ini
+└── README.md
 ```
 
----
+🧠 Para quem é
+Agile Coaches que já perceberam que métricas não bastam
+Líderes de produto lidando com dependências entre squads
+Arquitetos organizacionais
+Times que vivem bloqueios constantes sem explicação clara
 
-## Installation
 
-1. Clone the repository
-```bash
-git clone https://github.com/seu-usuario/flowradar.git
-cd flowradar/app
-```
+🧩 O que vem pela frente
+Explorer visual da rede (interativo)
+Simulações mais avançadas
+Análise preditiva de gargalos
+Integração direta com ferramentas (Jira, etc.)
 
-2. Create a virtual environment
 
-Linux / Mac:
-```bash
-python3 -m venv venv
-source venv/bin/activate
-```
+👤 Autor
+Bruno Novaes (brunonovaes@gmail.com)
 
-Windows:
-```bash
-python -m venv venv
-venv\Scripts\activate
-```
+Trabalhando na interseção entre:
+- fluxo de trabalho
+- estruturas organizacionais
+- sistemas complexos
 
-3. Install dependencies
-```bash
-pip install -r requirements.txt
-```
----
 
-## Canonical Input Model
+⭐ Se isso fez sentido para você
 
-FlowRadar expects three CSV files.
+Deixe uma estrela no repositório.
+Isso ajuda o projeto a evoluir — e mais pessoas a enxergarem o problema que ninguém está olhando.
 
-They must be placed in one of these directories:
 
-```bash
-data/raw/example/
-```
+📄 Licença
 
-or
-
-``` bash
-data/raw/prod/
-```
-
-## Example mode file names
-
-Inside data/raw/example/, use:
-
-```bash
-example_work_items.csv
-example_relationships.csv
-example_team_mapping.csv
-```
-
-Production mode file names
-
-Inside data/raw/prod/, use:
-
-```bash
-work_items.csv
-relationships.csv
-team_mapping.csv
-```
-
----
-
-## Required Files
-
-## 1. work_items.csv
-
-Required columns:
-
-```bash
-item_id, team
-```
-
-Rules:
-
-- item_id must be unique
-- team must exist in team_mapping.csv
-- null values are not allowed
-
----
-
-## 2. relationships.csv
-
-Required columns:
-
-```bash
-source_item, target_item
-```
-
-Rules:
-
-- both items must exist in work_items.csv
-- null values are not allowed
-
----
-
-## 3. team_mapping.csv
-
-Required columns:
-
-```bash
-team, cluster, tribe
-```
-
-Rules:
-
-- team must be unique
-- all teams must match the teams referenced in work_items.csv
-
----
-
-## Data Validation
-
-Before execution, FlowRadar validates:
-
-**Structural validation**
-- required columns
-- empty files
-- null values
-
-**Referential integrity**
-- relationships.source_item → work_items.item_id
-- relationships.target_item → work_items.item_id
-- work_items.team → team_mapping.team
-
-**Non-blocking warnings**
-- duplicate relationships
-- self-dependencies
-- unused teams
-
-If validation fails, execution is interrupted.
-
----
-
-# How to Run
-
-## 1. Run with example data
-```python
-python run_flowradar.py --mode example
-```
-
-## 2. Run with production data
-```python
-python run_flowradar.py --mode prod
-```
-
-## 3. Run with a custom directory
-```python
-python run_flowradar.py --input ./data/raw/prod
-```
-
----
-
-## How to Run a Simulation
-
-To simulate the removal of a squad:
-```python
-python run_flowradar.py --mode example --simulate-squad SQD-DAD
-```
-
-Replace SQD-DAD with the squad you want to simulate.
-
-Example:
-```python
-python run_flowradar.py --mode example --simulate-squad SQD-APP
-```
-
----
-
-## How to Run Multiple Simulations
-
-Example:
-```python
-python run_flowradar.py --mode example --simulate-squad SQD-DAD
-python run_flowradar.py --mode example --simulate-squad SQD-APP
-python run_flowradar.py --mode example --simulate-squad SQD-AUTH
-```
-
-Each simulation generates its own files, without overwriting the others.
-
----
-
-## How to Compare Simulations
-
-After generating two or more simulations, run:
-```python
-python compare_simulations.py
-```
-
-This will compare all files that match:
-```bash
-impact_simulation_*.json
-```
-
-and generate a consolidated comparison.
-
----
-
-## Output Files
-
-All outputs are generated in:
-```bash
-data/outputs/
-```
-
----
-
-## Baseline Outputs
-
-**Generated in normal execution:**
-
-- structural_metrics.csv
-Ranking of squads by structural criticality
-
-- risk_analysis.csv
-Ranking of squads by organizational risk
-
-- squad_relationships.csv
-Expanded table of squad-to-squad relationships
-
-- dependency_matrix.csv
-Matrix of dependencies between squads
-
-- dependency_heatmap.png
-Heatmap of dependencies
-
-- dependency_graph.png
-Executive dependency graph
-
-- criticality_ranking.png
-Visual ranking of structural criticality
-
-- summary.json
-Executive summary
-
-- flowradar_report.html
-Executive HTML report for the baseline scenario
-
----
-
-## Simulation Outputs
-
-Generated only when --simulate-squad is used.
-
-Example for SQD-DAD:
-
-- impact_simulation_SQD-DAD.json
-Raw result of the simulation
-
-- dependency_graph_impact_SQD-DAD.png
-Graph showing the structural effect of the simulated removal
-
-- impact_explanation_SQD-DAD.json
-Explain Impact output
-
-- flowradar_report_simulation_SQD-DAD.html
-Executive HTML report for that simulated scenario
-
----
-
-## Simulation Comparison Outputs
-
-Generated by compare_simulations.py:
-
-- simulation_comparison.csv
-Table comparing all simulated scenarios
-
-- simulation_comparison_summary.json
-Summary of the comparison
-
-- simulation_comparison.png
-Visual ranking of the most disruptive simulated removals
-
----
-
-How to Read the Results
-## 1. structural_metrics.csv
-
-Use this file to identify which squads are structurally critical.
-
-Main columns:
-
-- dependencies_received_in_degree
-- dependencies_generated_out_degree
-- betweenness_centrality
-- pagerank
-- structural_criticality_score
-
-Interpretation:
-
-- higher structural_criticality_score means higher structural relevance
-- squads at the top are likely bottlenecks or critical hubs
-
----
-
-## 2. risk_analysis.csv
-
-Use this file to identify systemic exposure and concentration of risk.
-
-Main columns:
-
-risk_score
-risk_category
-
-Interpretation:
-
-bottleneck = very high systemic concentration
-hub = highly connected and relevant
-fragile = vulnerable or structurally exposed
-peripheral = lower systemic importance
-
----
-
-## 3. dependency_heatmap.png
-
-Use this chart to visualize concentration of dependencies.
-
-Interpretation:
-
-darker cells indicate stronger dependency volume
-rows = dependent squads
-columns = provider squads
-
----
-
-## 4. dependency_graph.png
-
-Use this graph to understand the executive structural view of the network.
-
-Interpretation:
-
-larger nodes = more structurally critical
-thicker edges = stronger dependency volume
-highlighted nodes = most relevant squads
-
----
-
-## 5. criticality_ranking.png
-
-Use this chart to quickly identify the most critical squads.
-
-Interpretation:
-
-top bar = strongest structural bottleneck
-top 3 usually deserve special attention
-
----
-
-
-## 6. impact_simulation_<SQUAD>.json
-
-Use this file to inspect the result of a simulation.
-
-Main fields:
-
-removed_squad
-impact_score
-original_metrics
-simulated_metrics
-delta
-
-Interpretation:
-
-higher impact_score means stronger systemic disruption
-useful for scenario analysis and resilience discussion
-
----
-
-## 7. impact_explanation_<SQUAD>.json
-
-Use this file to understand why a simulated squad matters.
-
-Main fields:
-
-direct_dependents
-direct_dependencies
-in_degree
-out_degree
-betweenness_centrality
-cascade_impact
-summary
-
-Interpretation:
-
-explains structural influence in plain language
-useful for leadership discussion
-
----
-
-## 8. flowradar_report.html
-
-This is the easiest way to consume the baseline results.
-
-It consolidates:
-
-KPIs
-ranking
-risk table
-heatmap
-dependency graph
-
-Recommended for:
-
-quick review
-presentations
-sharing results with non-technical stakeholders
-
----
-
-## 9. flowradar_report_simulation_<SQUAD>.html
-
-This is the easiest way to consume a simulation.
-
-It consolidates:
-
-baseline KPIs
-simulation graph
-Explain Impact section
-executive interpretation
-
-Recommended for:
-
-scenario analysis
-resilience discussion
-leadership meetings
-
----
-
-## 10. simulation_comparison.png
-
-Use this when you want to compare multiple simulated removals.
-
-Interpretation:
-
-higher bar = more disruptive scenario
-useful to answer:
-which squad is riskier to lose?
-which scenario generates more disruption?
-
----
-
-## Recommended Execution Flow
-
-Basic analysis
-python run_flowradar.py --mode example
-
-Then open:
-
-data/outputs/flowradar_report.html
-
----
-
-## Single simulation analysis
-python run_flowradar.py --mode example --simulate-squad SQD-DAD
-
-Then open:
-
-data/outputs/flowradar_report_simulation_SQD-DAD.html
-
----
-
-## Comparative simulation analysis
-python run_flowradar.py --mode example --simulate-squad SQD-DAD
-python run_flowradar.py --mode example --simulate-squad SQD-APP
-python run_flowradar.py --mode example --simulate-squad SQD-AUTH
-python compare_simulations.py
-
-Then inspect:
-
-data/outputs/simulation_comparison.png
-data/outputs/simulation_comparison.csv
-data/outputs/simulation_comparison_summary.json
-
----
-
-## Example Use Cases
-Identify hidden bottlenecks in large organizations
-Support architectural and organizational decisions
-Understand dependency concentration
-Improve systemic resilience
-Support QBR and leadership discussions with evidence
-Detect critical squads before organizational redesign
-Simulate fragility and cascading disruption
-
----
-
-## Data Sources
-
-FlowRadar is tool-agnostic.
-
-Data can originate from:
-
-Jira
-Azure DevOps
-SwiftKanban
-CSV exports
-internal APIs
-
-Important:
-all data must be converted to the canonical input model before execution.
-
----
-
-## Important Notes
-Do not upload sensitive production data
-Prefer anonymized or synthetic datasets when sharing
-Ensure consistency between datasets before running
-Regenerate simulations after changing impact logic
-compare_simulations.py does not recalculate simulations — it only reads files already generated
-
----
-
-## Roadmap
- Interactive graph visualization
- Native integration with Jira / Azure DevOps
- Dependency explanation directly inside comparison reports
- Simulation portfolio view
- Organizational digital twin simulation
- Automated data adapters
-
----
-
-## License
-
-This project is licensed under the MIT License.
-
----
-
-## Author
-
-Bruno Novaes
-Agile Coach | Systems Thinking | Data-Driven Organizations
-
----
-
-## Final Thought
-
-FlowRadar is not just about metrics.
-
-It is about making invisible organizational dynamics visible.
+MIT
