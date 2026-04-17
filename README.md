@@ -170,7 +170,7 @@ It is:
 
 For a deeper explanation and narrative context:
 
-👉 (add your Medium / LinkedIn article link here)
+👉 [(https://medium.com/@brunonovaesbr/flowradar-hidden-architecture-of-flow-461e96d42ddd)](https://medium.com/@brunonovaesbr/flowradar-hidden-architecture-of-flow-461e96d42ddd)
 
 ---
 
