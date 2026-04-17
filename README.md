@@ -180,3 +180,11 @@ Organizations don’t struggle because they lack effort.
 
 They struggle because they cannot see the system they operate in.
 
+---
+
+## ☕ Support FlowRadar
+
+If FlowRadar helps you understand flow, dependencies, and bottlenecks in real-world systems, consider supporting its evolution:
+
+👉 https://buymeacoffee.com/brunonovaes
+
