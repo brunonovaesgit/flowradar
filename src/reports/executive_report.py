@@ -1,5 +1,3 @@
-# Path: src/reports/executive_report.py
-
 from __future__ import annotations
 
 import json
@@ -217,8 +215,6 @@ def _build_system_insight(
     </div>
     """
 
-
-# Path: src/reports/executive_report.py
 
 def _get_kpi_color(value: float, metric: str) -> str:
     """
@@ -545,7 +541,7 @@ def generate_executive_report(
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>FlowRadar Executive Report</title>
+    <title>FlowRadar Report</title>
     <style>
         :root {{
             --blue: #4C78A8;
@@ -783,7 +779,7 @@ def generate_executive_report(
 <body>
     <div class="container">
         <section class="hero">
-            <h1>FlowRadar — Executive Report</h1>
+            <h1>FlowRadar — Report</h1>
             <p>
                 Systemic analysis of organizational dependencies, structural criticality, and operational risk.
             </p>

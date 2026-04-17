@@ -1,5 +1,3 @@
-# Path: src/metrics/risk_analysis.py
-
 from __future__ import annotations
 
 from pathlib import Path

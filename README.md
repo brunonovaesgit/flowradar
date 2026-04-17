@@ -1,355 +1,182 @@
-# FlowRadar
+# FlowRadar — Organizational Flow Diagnostics
 
-> Seu time não é lento.  
-> Seu fluxo está preso.
+## 🧠 Overview
 
----
+FlowRadar is an analytical model designed to diagnose organizational flow through the lens of **dependencies and system structure**.
 
-A maioria das organizações mede velocidade.
+Instead of focusing only on execution metrics (like lead time or throughput), FlowRadar reveals:
 
-- Lead time  
-- Throughput  
-- WIP  
+- where the system actually depends  
+- how fragile the structure is  
+- how coordination impacts delivery  
 
-E mesmo assim… continuam lentas.
-
-O problema não está nessas métricas.
-
-Está no que elas **não mostram**.
+It shifts the perspective from managing work to **understanding the system behind it**.
 
 ---
 
-## 🧠 O problema invisível
+## 🔍 What is this?
 
-Times não trabalham isolados.
+FlowRadar is not a tool or a dashboard.
 
-Eles dependem uns dos outros.
+It is a model that answers questions such as:
 
-E essas dependências:
-
-- criam filas invisíveis  
-- espalham atraso pelo sistema  
-- distorcem métricas  
-- tornam previsões inúteis  
-
-Você não tem um problema de execução.
-
-Você tem um problema de **estrutura de fluxo**.
+- Where are the real bottlenecks?
+- Is the system structurally fragile?
+- How much coordination is required to deliver value?
 
 ---
 
-## 🔍 O que o FlowRadar faz
+## 🧩 Core Concept
 
-O FlowRadar trata sua organização como ela realmente funciona:
+Organizations can be modeled as a **network of dependencies**:
 
-> uma rede de dependências
+- Nodes → squads / teams  
+- Edges → dependencies between them  
 
-Ele permite:
+```bash
+G = (V,E)
+```
 
-- mapear quem depende de quem  
-- identificar gargalos sistêmicos  
-- medir impacto estrutural (não só esforço)  
-- simular mudanças antes de aplicá-las  
-- visualizar o fluxo de forma objetiva  
+Where:
+
+- `V` = set of nodes  
+- `E` = set of dependencies  
+
+This allows us to move from isolated metrics to **system-level analysis**.
 
 ---
 
-## ⚙️ Como funciona (em alto nível)
+## ⚠️ Criticality
 
-1. Você fornece dados de trabalho (issues, dependências, fluxos)
-2. O FlowRadar constrói uma rede
-3. Aplica métricas de rede (centralidade, impacto, fragilidade)
-4. Gera análises e simulações
+Each node can be evaluated based on its structural importance.
+
+A simplified formulation:
+```bash
+Cᵢ = α · InDegreeᵢ + β · BetweennessCentralityᵢ
+```
+
+Where:
+
+- `InDegree` captures how many depend on the node  
+- `Betweenness` captures how much flow passes through it  
+
+High criticality indicates potential bottlenecks.
 
 ---
 
-## 🚀 Instalação
-
-### 1. Clone do repositório 
-
+## 🔥 Flow Fragility Index (FFI)
 ```bash
-git clone https://github.com/brunonovaesgit/flowradar.git
-cd flowradar
+FFI = Σ(Cᵢ²) / Σ(Cᵢ)
 ```
 
-> Antes de rodar o clone, escolha a pasta onde você quer salvar o projeto localmente.
+### What it measures
+
+The concentration of critical dependencies in the system.
+
+### Interpretation
+```bash
+| Range | Meaning |
+|------|--------|
+| < 0.3 | Distributed (low fragility) |
+| 0.3 – 0.6 | Moderate concentration |
+| > 0.6 | High fragility |
+```
+### Insight
+
+A high FFI means the system depends heavily on a few nodes, increasing systemic risk.
 
 ---
 
-### 2. Ambiente virtual
-
+## 🔄 Coordination Cost Index (CCI)
 ```bash
-python3 -m venv venv
-source venv/bin/activate  # Linux / Mac
-
-# ou
-venv\Scripts\activate     # Windows
+CCI = Σ(dependencies) / N
 ```
+
+Where:
+
+- `N` = number of squads  
+
+### What it measures
+
+The average coordination effort required per squad.
+
+### Interpretation
+```bash
+| Range | Meaning |
+|------|--------|
+| < 2 | Low coordination |
+| 2 – 4 | Moderate |
+| > 4 | High coordination overhead |
+```
+### Insight
+
+Higher CCI means more alignment, more communication, and slower flow.
 
 ---
 
-### 3. Dependências
+## 🌐 System Behavior
+
+By combining FFI and CCI, we can characterize the system:
 ```bash
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
+| Scenario | Interpretation |
+|--------|---------------|
+| High FFI + High CCI | Fragile and overloaded |
+| Low FFI + Low CCI | Resilient and autonomous |
+| High FFI + Low CCI | Centralized but efficient |
+| Low FFI + High CCI | Distributed but complex |
 ```
+---
+
+## 📊 Example Output
+
+FlowRadar transforms operational data (e.g., Jira) into:
+
+- dependency graphs  
+- heatmaps  
+- criticality rankings  
+- system-level indicators  
+
+These outputs make invisible structures visible.
 
 ---
 
-▶️ Execução
+## 🎯 Why This Matters
 
-Rodar análise principal:
-```bash
-python run_flowradar.py
-```
+Traditional metrics answer:
 
-Simulações de impacto: 
-```bash
-python compare_simulations.py
-```
+> “How fast are we delivering?”
+
+FlowRadar answers:
+
+> “Why are we slow — structurally?”
 
 ---
 
-🧪 Testes
+## 🧭 Positioning
 
-Rodar todos os testes:
-```bash
-pytest
-```
+FlowRadar is not:
 
-Rodar com mais detalhes: 
-```bash
-pytest -vv
-```
+- a project management tool  
+- a dashboard  
+- a reporting layer  
 
-📊 O que você recebe
+It is:
 
-Dependendo do cenário, o FlowRadar gera:
-
-rede de dependências (graph.json)
-ranking de impacto (quem realmente importa no fluxo)
-heatmaps de concentração de dependências
-simulações de remoção ou alteração de squads
-explicações estruturais do comportamento do sistema
+> a model for diagnosing organizational flow as a system.
 
 ---
 
-📈 O que você começa a enxergar
+## 📖 Article
 
-Depois de usar o FlowRadar, algumas coisas ficam óbvias:
+For a deeper explanation and narrative context:
 
-por que features ficam presas por semanas
-por que dividir histórias nem sempre resolve
-por que alguns times “sempre atrasam”
-por que métricas boas não significam fluxo saudável
+👉 (add your Medium / LinkedIn article link here)
 
 ---
 
-⚠️ O desconforto necessário
+## 🧠 Final Thought
 
-O FlowRadar não vai te dar respostas confortáveis.
+Organizations don’t struggle because they lack effort.
 
-Ele pode mostrar que:
+They struggle because they cannot see the system they operate in.
 
-o problema não é o time
-o problema não é o processo
-o problema é a forma como o trabalho está organizado
-
----
-
-📊 Estrutura do projeto
-
-```bash
-.
-├── src/
-│   ├── analysis/
-│   ├── graph_builder/
-│   ├── metrics/
-│   ├── pipeline/
-│   ├── reports/
-│   ├── simulations/
-│   └── visualizations/
-│
-├── tests/
-├── data/
-│
-├── run_flowradar.py
-├── compare_simulations.py
-│
-├── requirements.txt
-├── requirements-dev.txt
-├── pytest.ini
-└── README.md
-```
-
-🧠 Para quem é
-Agile Coaches que já perceberam que métricas não bastam
-Líderes de produto lidando com dependências entre squads
-Arquitetos organizacionais
-Times que vivem bloqueios constantes sem explicação clara
-
-
-🧩 O que vem pela frente
-Explorer visual da rede (interativo)
-Simulações mais avançadas
-Análise preditiva de gargalos
-Integração direta com ferramentas (Jira, etc.)
-
-
-👤 Autor
-Bruno Novaes (brunonovaes@gmail.com)
-
-Trabalhando na interseção entre:
-- fluxo de trabalho
-- estruturas organizacionais
-- sistemas complexos
-
-
-⭐ Se isso fez sentido para você
-
-Deixe uma estrela no repositório.
-Isso ajuda o projeto a evoluir — e mais pessoas a enxergarem o problema que ninguém está olhando.
-
-
-📄 Licença
-
-MIT
-
----
-
-# As 5 métricas oficiais do FlowRadar
-
-Essas cinco já são suficientes para você ter um modelo sólido, consistente e explicável.
-
-1. 🔥 System Impact Score (SIS)
-📌 O que é
-
-Mede o quanto um nó (squad, sistema, etapa) impacta o fluxo como um todo.
-
-🧮 Como calcular (base)
-
-Use centralidade:
-
-PageRank (recomendado)
-```bash
-SIS = pagerank(node)
-```
-
-🧠 Interpretação
-- alto SIS → esse nó influencia grande parte do sistema
-- baixo SIS → impacto local
-
-
-2. ⚠️ Flow Fragility Index (FFI)
-📌 O que é
-
-Mede o quanto o sistema depende de poucos nós críticos.
-
-🧮 Como calcular
-```bash
-FFI = soma_dos_top_N_SIS / soma_total_SIS
-```
-
-Exemplo:
-- pegue top 20% dos nós mais críticos
-- veja quanto do impacto total eles concentram
-
-🧠 Interpretação
-- alto FFI → sistema frágil (concentrado)
-- baixo FFI → sistema distribuído (resiliente)
-
-
-3. 🔗 Dependency Load Score (DLS)
-📌 O que é
-
-Mede a carga de dependências de um nó.
-
-🧮 Como calcular
-```bash
-DLS = in_degree + out_degree
-```
-
-Ou ponderado:
-```bash
-DLS = dependencias_entrada * peso + dependencias_saida
-```
-
-🧠 Interpretação
-- alto DLS → potencial gargalo
-- baixo DLS → fluxo mais simples
-
-
-4. 🚧 Flow Bottleneck Probability (FBP)
-📌 O que é
-
-Probabilidade de um nó se tornar gargalo.
-
-🧮 Como calcular (modelo simples)
-```bash
-FBP = normalizar(SIS * DLS)
-```
-
-Ou mais refinado:
-```bash
-FBP = (SIS * DLS) / capacidade_do_nó
-```
-
-🧠 Interpretação
-- alto FBP → risco real de travar o fluxo
-- baixo FBP → baixo risco
-
-
-5. 🧩 Coordination Cost Index (CCI)
-📌 O que é
-
-Custo estrutural de coordenação do sistema.
-
-🧮 Como calcular
-```bash
-CCI = total_de_arestas / total_de_nós
-```
-
-Ou:
-```bash
-CCI = média_de_dependências_por_nó
-```
-
-🧠 Interpretação
-alto CCI → sistema complexo, difícil de coordenar
-baixo CCI → sistema simples
-
-
-🧭 Como essas métricas se conectam
-```bash
---------------------------------------------
-|   Métrica     Responde                   |
--------------------------------------------|
-|   SIS	        Quem importa no sistema    |
-|   FFI	        O sistema é frágil?        |
-|   DLS	        Quem está sobrecarregado   |
-|   FBP	        Onde vai travar            |
-|   CCI	        Quão complexo é coordenar  |
---------------------------------------------
-```
-
-🔥 Exemplo real (como você usaria)
-
-Você olha o resultado e diz:
-- Squad A → alto SIS → crítico
-- Squad B → alto DLS → sobrecarregado
-- Squad C → alto FBP → próximo gargalo
-- Sistema → alto FFI → frágil
-- Sistema → alto CCI → difícil de operar
-
-👉 Isso vira narrativa executiva.
-
----
-
-⚠️ Regras importantes (pra não virar buzzword)
-1. Toda métrica precisa:
-    - ter cálculo simples
-    - ser explicável em 1 frase
-    - gerar ação
-2. Evite criar 10+ métricas
-    → essas 5 já são fortes
-3. Prefira consistência > sofisticação
