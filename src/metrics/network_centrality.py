@@ -1,3 +1,5 @@
+# Path: src/metrics/network_centrality.py
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -11,16 +13,32 @@ import pandas as pd
 # MÓDULO: NETWORK CENTRALITY
 # ==========================================================
 #
-# Este módulo consolida as principais métricas estruturais
-# da rede de dependências organizacionais.
+# Este módulo reúne as métricas estruturais centrais do
+# FlowRadar.
+#
+# Aqui calculamos:
+# - in-degree / out-degree
+# - betweenness centrality
+# - pagerank
+# - structural_criticality_score
+# - system_impact_score (nome conceitual oficial)
+# - dependency_load_score
+#
+# A intenção é manter o código simples de ler, fácil de
+# evoluir e sem quebrar compatibilidade com os artefatos
+# já gerados pelo projeto.
 # ==========================================================
 
 
 def calculate_in_out_degree(dependency_graph: nx.DiGraph) -> pd.DataFrame:
     """
     Calcula o número de dependências recebidas e geradas por cada squad.
+
+    Saída:
+    - dependencies_received_in_degree
+    - dependencies_generated_out_degree
     """
-    rows = []
+    rows: list[dict] = []
 
     for squad_name in dependency_graph.nodes():
         dependencies_received = dependency_graph.in_degree(squad_name)
@@ -42,6 +60,9 @@ def calculate_betweenness_centrality(
 ) -> pd.DataFrame:
     """
     Calcula betweenness centrality para cada squad.
+
+    Essa métrica ajuda a identificar squads que funcionam
+    como ponte no fluxo entre outras partes da rede.
     """
     betweenness_by_squad = nx.betweenness_centrality(
         dependency_graph,
@@ -62,6 +83,10 @@ def calculate_betweenness_centrality(
 def calculate_pagerank(dependency_graph: nx.DiGraph) -> pd.DataFrame:
     """
     Calcula PageRank para cada squad.
+
+    O PageRank ajuda a capturar influência estrutural:
+    um nó pode não ter o maior volume absoluto de conexões,
+    mas ainda assim ocupar uma posição importante na rede.
     """
     pagerank_by_squad = nx.pagerank(dependency_graph)
 
@@ -78,7 +103,10 @@ def calculate_pagerank(dependency_graph: nx.DiGraph) -> pd.DataFrame:
 
 def _normalize_series(values: pd.Series) -> pd.Series:
     """
-    Normaliza uma série entre 0 e 1.
+    Normaliza uma série no intervalo entre 0 e 1.
+
+    Quando todos os valores são iguais, retorna zeros para
+    evitar divisão por zero e manter o comportamento previsível.
     """
     minimum_value = values.min()
     maximum_value = values.max()
@@ -97,6 +125,16 @@ def calculate_structural_criticality_score(
 ) -> pd.DataFrame:
     """
     Calcula um score composto de criticidade estrutural.
+
+    Fórmula-base:
+        structural_criticality_score =
+            0.40 * in_degree_normalized +
+            0.35 * betweenness_normalized +
+            0.25 * pagerank_normalized
+
+    Observação:
+    Esse score também representa, conceitualmente, o
+    System Impact Score (SIS) do FlowRadar.
     """
     required_columns = {
         "dependencies_received_in_degree",
@@ -127,6 +165,58 @@ def calculate_structural_criticality_score(
         + pagerank_weight * result["pagerank_normalized"]
     )
 
+    # Nome conceitual oficial do FlowRadar.
+    # Mantemos também o nome antigo para não quebrar compatibilidade.
+    result["system_impact_score"] = result["structural_criticality_score"]
+
+    return result
+
+
+def calculate_dependency_load_score(
+    centrality_table: pd.DataFrame,
+    received_dependencies_weight: float = 0.60,
+    generated_dependencies_weight: float = 0.40,
+) -> pd.DataFrame:
+    """
+    Calcula a carga de dependências de cada squad.
+
+    Fórmula:
+        dependency_load_score_raw =
+            0.60 * dependencies_received_in_degree +
+            0.40 * dependencies_generated_out_degree
+
+    Depois disso, a coluna é normalizada para gerar:
+        dependency_load_score
+
+    Ideia da métrica:
+    - dependências recebidas tendem a pressionar mais o nó
+    - dependências geradas também importam, mas com peso menor
+    """
+    required_columns = {
+        "dependencies_received_in_degree",
+        "dependencies_generated_out_degree",
+    }
+
+    missing_columns = required_columns - set(centrality_table.columns)
+    if missing_columns:
+        missing_str = ", ".join(sorted(missing_columns))
+        raise ValueError(
+            f"Centrality table is missing required columns: {missing_str}"
+        )
+
+    result = centrality_table.copy()
+
+    result["dependency_load_score_raw"] = (
+        received_dependencies_weight
+        * result["dependencies_received_in_degree"]
+        + generated_dependencies_weight
+        * result["dependencies_generated_out_degree"]
+    )
+
+    result["dependency_load_score"] = _normalize_series(
+        result["dependency_load_score_raw"]
+    )
+
     return result
 
 
@@ -136,6 +226,9 @@ def build_structural_metrics_table(
 ) -> pd.DataFrame:
     """
     Constrói a tabela consolidada de métricas estruturais.
+
+    Essa tabela é a base analítica principal do FlowRadar
+    para leitura de criticidade, impacto e carga relacional.
     """
     degree_table = calculate_in_out_degree(dependency_graph)
     betweenness_table = calculate_betweenness_centrality(dependency_graph)
@@ -148,6 +241,10 @@ def build_structural_metrics_table(
     )
 
     consolidated_table = calculate_structural_criticality_score(
+        consolidated_table
+    )
+
+    consolidated_table = calculate_dependency_load_score(
         consolidated_table
     )
 

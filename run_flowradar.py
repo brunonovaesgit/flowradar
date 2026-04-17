@@ -41,6 +41,11 @@ from src.simulations.impact_simulation import (
     export_simulation_result,
 )
 
+from src.metrics.system_metrics import (
+    build_system_summary,
+    export_system_summary,
+)
+
 
 # ==========================================================
 # FLOWRADAR - ENTRY POINT
@@ -539,6 +544,20 @@ def main(
     )
 
     print("[FlowRadar] ✔ Summary gerado")
+
+    # 11.1 RESUMO SISTÊMICO DO FLOWRADAR
+    system_summary = build_system_summary(
+        dependency_graph=dependency_graph,
+        structural_metrics_table=structural_metrics,
+        top_ratio=0.20,
+    )
+
+    export_system_summary(
+        system_summary=system_summary,
+        output_file=output_path / "system_summary.json",
+    )
+
+    print("[FlowRadar] ✔ System summary gerado")
 
     # 12. SIMULAÇÃO OPCIONAL DE IMPACTO
     report_filename = "flowradar_report.html"

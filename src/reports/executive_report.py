@@ -1,3 +1,5 @@
+# Path: src/reports/executive_report.py
+
 from __future__ import annotations
 
 import json
@@ -7,6 +9,9 @@ import pandas as pd
 
 
 def _read_json(file_path: Path) -> dict:
+    """
+    Lê um arquivo JSON e devolve dicionário vazio se ele não existir.
+    """
     if not file_path.exists():
         return {}
 
@@ -15,6 +20,10 @@ def _read_json(file_path: Path) -> dict:
 
 
 def _read_csv(file_path: Path) -> pd.DataFrame:
+    """
+    Lê um CSV com suporte a UTF-8 BOM.
+    Se o arquivo não existir, devolve DataFrame vazio.
+    """
     if not file_path.exists():
         return pd.DataFrame()
 
@@ -22,10 +31,14 @@ def _read_csv(file_path: Path) -> pd.DataFrame:
 
 
 def _build_table_html(df: pd.DataFrame, max_rows: int = 10) -> str:
+    """
+    Converte um DataFrame em tabela HTML simples para o relatório.
+    """
     if df.empty:
         return "<p class='empty'>No data available.</p>"
 
     safe_df = df.head(max_rows).copy()
+
     return safe_df.to_html(
         index=False,
         classes="flowradar-table",
@@ -35,6 +48,9 @@ def _build_table_html(df: pd.DataFrame, max_rows: int = 10) -> str:
 
 
 def _image_block(title: str, image_name: str, subtitle: str = "") -> str:
+    """
+    Gera um card padrão com título, subtítulo e imagem.
+    """
     return f"""
     <section class="card">
         <h2>{title}</h2>
@@ -53,12 +69,15 @@ def _extract_simulated_squad_from_report_name(file_name: str) -> str | None:
     suffix = ".html"
 
     if file_name.startswith(prefix) and file_name.endswith(suffix):
-        return file_name[len(prefix):-len(suffix)]
+        return file_name[len(prefix) : -len(suffix)]
 
     return None
 
 
 def _format_list_as_html(items: list[str]) -> str:
+    """
+    Formata uma lista simples para exibição no relatório.
+    """
     if not items:
         return "<span class='muted'>None</span>"
 
@@ -69,6 +88,9 @@ def _lookup_structural_criticality_score(
     structural_metrics: pd.DataFrame,
     squad: str,
 ) -> float:
+    """
+    Busca o structural_criticality_score de uma squad.
+    """
     if structural_metrics.empty or "squad" not in structural_metrics.columns:
         return 0.0
 
@@ -85,9 +107,11 @@ def _lookup_structural_criticality_score(
 
 def _normalize_impact_score(raw_impact_score: float) -> float:
     """
-    Normaliza o impact_score para faixa 0..1.
-    Como os cenários atuais estão ficando por volta de 0.5,
-    usamos clamp em 1.0 para manter leitura executiva simples.
+    Normaliza o impact_score para a faixa 0..1.
+
+    Como os cenários atuais já saem em uma escala relativamente
+    controlada, aqui usamos um clamp simples em 1.0 para manter
+    a leitura executiva objetiva.
     """
     if raw_impact_score <= 0:
         return 0.0
@@ -95,11 +119,139 @@ def _normalize_impact_score(raw_impact_score: float) -> float:
     return min(raw_impact_score, 1.0)
 
 
+def _build_system_insight(
+    flow_fragility_index: float,
+    coordination_cost_index: float,
+) -> str:
+    """
+    Gera leitura executiva do sistema (nível diretoria).
+    """
+
+    if flow_fragility_index == 0.0 and coordination_cost_index == 0.0:
+        return "<p class='muted'>System-level insights unavailable.</p>"
+
+    insights: list[str] = []
+
+    # -----------------------------
+    # 1. DIAGNÓSTICO DE FRAGILIDADE
+    # -----------------------------
+    if flow_fragility_index >= 0.7:
+        fragility = "highly fragile"
+        fragility_msg = (
+            "The system shows a strong concentration of critical dependencies "
+            "in a small number of squads, creating structural fragility."
+        )
+    elif flow_fragility_index >= 0.4:
+        fragility = "moderately fragile"
+        fragility_msg = (
+            "Critical dependencies are partially distributed, but there are "
+            "still relevant concentration points that can act as bottlenecks."
+        )
+    else:
+        fragility = "resilient"
+        fragility_msg = (
+            "Critical dependencies are well distributed across squads, "
+            "indicating a structurally resilient system."
+        )
+
+    # -----------------------------
+    # 2. DIAGNÓSTICO DE COORDENAÇÃO
+    # -----------------------------
+    if coordination_cost_index >= 4:
+        coordination_msg = (
+            "Coordination cost is high, meaning squads depend heavily on each other "
+            "to deliver value."
+        )
+    elif coordination_cost_index >= 2:
+        coordination_msg = (
+            "Coordination cost is moderate, requiring regular alignment between squads."
+        )
+    else:
+        coordination_msg = (
+            "Coordination cost is low, enabling greater autonomy and faster delivery cycles."
+        )
+
+    # -----------------------------
+    # 3. IMPLICAÇÃO EXECUTIVA
+    # -----------------------------
+    if flow_fragility_index >= 0.4 and coordination_cost_index >= 4:
+        implication = (
+            "This combination increases the risk of systemic delays, "
+            "as critical squads become overloaded and dependencies amplify coordination overhead."
+        )
+    elif flow_fragility_index < 0.4 and coordination_cost_index < 2:
+        implication = (
+            "The system is well balanced, with good autonomy and low structural risk."
+        )
+    else:
+        implication = (
+            "There is a balance between autonomy and coordination, "
+            "but attention is required to prevent future bottlenecks."
+        )
+
+    # -----------------------------
+    # 4. RECOMENDAÇÃO
+    # -----------------------------
+    if flow_fragility_index >= 0.7:
+        recommendation = "Reduce dependency concentration and redistribute responsibilities."
+    elif coordination_cost_index >= 4:
+        recommendation = "Simplify dependency chains and improve decoupling between squads."
+    else:
+        recommendation = "Maintain current structure and monitor dependency evolution."
+
+    return f"""
+    <div style="line-height:1.6;">
+        <p><b>System condition:</b> {fragility}</p>
+        <p>{fragility_msg}</p>
+        <p>{coordination_msg}</p>
+
+        <div style="margin-top:12px; padding:12px; background:#F8FAFC; border-radius:10px;">
+            <b>Executive implication:</b>
+            <p style="margin:6px 0 0;">{implication}</p>
+        </div>
+
+        <div style="margin-top:12px;">
+            <b>Recommendation:</b>
+            <p style="margin:6px 0 0;">{recommendation}</p>
+        </div>
+    </div>
+    """
+
+
+# Path: src/reports/executive_report.py
+
+def _get_kpi_color(value: float, metric: str) -> str:
+    """
+    Define cor baseada no risco do KPI.
+    """
+
+    if metric == "ffi":
+        if value >= 0.7:
+            return "#D62728"  # vermelho
+        elif value >= 0.4:
+            return "#F28E2B"  # laranja
+        else:
+            return "#2CA02C"  # verde
+
+    if metric == "cci":
+        if value >= 4:
+            return "#D62728"
+        elif value >= 2:
+            return "#F28E2B"
+        else:
+            return "#2CA02C"
+
+    return "#4C78A8"
+
+
 def _build_explain_impact_block(
     explanation: dict,
     structural_criticality_score: float = 0.0,
     simulated_impact_score: float = 0.0,
 ) -> str:
+    """
+    Gera o bloco executivo de Explain Impact para relatórios de simulação.
+    """
     if not explanation:
         return ""
 
@@ -152,16 +304,24 @@ def _build_explain_impact_block(
         insights.append("A remoção simulada gera disrupção sistêmica relevante.")
 
     if betweenness > 0.10:
-        insights.append("Atua como ponte relevante entre diferentes partes do fluxo.")
+        insights.append(
+            "Atua como ponte relevante entre diferentes partes do fluxo."
+        )
 
     if in_degree >= out_degree and in_degree >= 5:
-        insights.append("Alta dependência externa — risco de bloqueio por terceiros.")
+        insights.append(
+            "Alta dependência externa — risco de bloqueio por terceiros."
+        )
 
     if out_degree > in_degree and out_degree >= 5:
-        insights.append("Alta responsabilidade sistêmica — múltiplas squads dependem desta.")
+        insights.append(
+            "Alta responsabilidade sistêmica — múltiplas squads dependem desta."
+        )
 
     if cascade_count >= 5:
-        insights.append("Possui alto potencial de efeito cascata na organização.")
+        insights.append(
+            "Possui alto potencial de efeito cascata na organização."
+        )
 
     if not insights:
         insights.append("Impacto estrutural mais localizado e controlado.")
@@ -170,14 +330,26 @@ def _build_explain_impact_block(
 
     if level in ["CRÍTICO", "ALTO IMPACTO"]:
         recommendations.append("Reduzir acoplamento estrutural entre squads.")
-        recommendations.append("Criar contingência operacional para falhas ou atrasos.")
-        recommendations.append("Distribuir responsabilidades hoje concentradas nessa squad.")
+        recommendations.append(
+            "Criar contingência operacional para falhas ou atrasos."
+        )
+        recommendations.append(
+            "Distribuir responsabilidades hoje concentradas nessa squad."
+        )
     elif level == "MODERADO":
-        recommendations.append("Monitorar a evolução das dependências ao longo do tempo.")
-        recommendations.append("Evitar crescimento descontrolado de acoplamento.")
+        recommendations.append(
+            "Monitorar a evolução das dependências ao longo do tempo."
+        )
+        recommendations.append(
+            "Evitar crescimento descontrolado de acoplamento."
+        )
     else:
-        recommendations.append("Manter monitoramento contínuo da criticidade estrutural.")
-        recommendations.append("Preservar autonomia e evitar centralização futura.")
+        recommendations.append(
+            "Manter monitoramento contínuo da criticidade estrutural."
+        )
+        recommendations.append(
+            "Preservar autonomia e evitar centralização futura."
+        )
 
     return f"""
     <section class="card">
@@ -271,10 +443,19 @@ def generate_executive_report(
     output_dir: str | Path,
     file_name: str = "flowradar_report.html",
 ) -> Path:
+    """
+    Gera o relatório executivo HTML do FlowRadar.
+
+    O relatório pode funcionar em dois modos:
+    - baseline
+    - simulação (quando o nome do arquivo indicar uma squad simulada)
+    """
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
     summary = _read_json(output_path / "summary.json")
+    system_summary = _read_json(output_path / "system_summary.json")
+
     structural_metrics = _read_csv(output_path / "structural_metrics.csv")
     risk_analysis = _read_csv(output_path / "risk_analysis.csv")
 
@@ -301,6 +482,19 @@ def generate_executive_report(
     top_bottleneck = summary.get("top_bottleneck", "-")
     top_bottleneck_score = summary.get("top_bottleneck_score", "-")
 
+    flow_fragility_index = float(
+        system_summary.get("flow_fragility_index", 0)
+    )
+    coordination_cost_index = float(
+        system_summary.get("coordination_cost_index", 0)
+    )
+
+    # Esse bloco precisa existir sempre, com ou sem simulação.
+    system_insight_html = _build_system_insight(
+        flow_fragility_index=flow_fragility_index,
+        coordination_cost_index=coordination_cost_index,
+    )
+
     simulated_squad = _extract_simulated_squad_from_report_name(file_name)
 
     impact_block = ""
@@ -314,15 +508,24 @@ def generate_executive_report(
             impact_block = _image_block(
                 title="Impact Simulation",
                 image_name=impact_image_name,
-                subtitle=f"Simulation of structural impact after removing {simulated_squad}.",
+                subtitle=(
+                    f"Simulation of structural impact after removing "
+                    f"{simulated_squad}."
+                ),
             )
 
-        explanation_file = output_path / f"impact_explanation_{simulated_squad}.json"
+        explanation_file = (
+            output_path / f"impact_explanation_{simulated_squad}.json"
+        )
         explanation = _read_json(explanation_file)
 
-        simulation_file = output_path / f"impact_simulation_{simulated_squad}.json"
+        simulation_file = (
+            output_path / f"impact_simulation_{simulated_squad}.json"
+        )
         simulation_result = _read_json(simulation_file)
-        simulated_impact_score = float(simulation_result.get("impact_score", 0.0))
+        simulated_impact_score = float(
+            simulation_result.get("impact_score", 0.0)
+        )
 
         if explanation:
             structural_score = _lookup_structural_criticality_score(
@@ -393,7 +596,7 @@ def generate_executive_report(
 
         .kpis {{
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(6, minmax(0, 1fr));
             gap: 16px;
             margin-top: 24px;
         }}
@@ -542,6 +745,12 @@ def generate_executive_report(
             font-size: 13px;
         }}
 
+        @media (max-width: 1100px) {{
+            .kpis {{
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }}
+        }}
+
         @media (max-width: 900px) {{
             .grid-2 {{
                 grid-template-columns: 1fr;
@@ -596,7 +805,27 @@ def generate_executive_report(
                     <div class="kpi-label">Bottleneck score</div>
                     <div class="kpi-value">{top_bottleneck_score}</div>
                 </div>
+                <div class="kpi">
+                    <div class="kpi-label">Flow Fragility</div>
+                    <div class="kpi-value" style="color:{_get_kpi_color(flow_fragility_index, 'ffi')}">
+                        {round(flow_fragility_index, 3)}
+                    </div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">Coordination Cost</div>
+                    <div class="kpi-value" style="color:{_get_kpi_color(coordination_cost_index, 'cci')}">
+                        {round(coordination_cost_index, 2)}
+                    </div>
+                </div>
             </div>
+        </section>
+
+        <section class="card">
+            <h2>System Overview</h2>
+            <p class="section-subtitle">
+                High-level interpretation of system fragility and coordination cost.
+            </p>
+            {system_insight_html}
         </section>
 
         <div class="grid-2">
