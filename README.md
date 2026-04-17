@@ -75,11 +75,11 @@ The concentration of critical dependencies in the system.
 
 ### Interpretation
 ```bash
-| Range      | Meaning                     |
-|------------|-----------------------------|
-| < 0.3      | Distributed (low fragility) |
-| 0.3 – 0.6  | Moderate concentration      |
-| > 0.6      | High fragility              |
+| Range      | Meaning                      |
+|------------|------------------------------|
+| < 0.3      | Distributed (low fragility)  |
+| 0.3 – 0.6  | Moderate concentration       |
+| > 0.6      | High fragility               |
 ```
 ### Insight
 
@@ -102,11 +102,11 @@ The average coordination effort required per squad.
 
 ### Interpretation
 ```bash
-| Range  | Meaning                    |
-|--------|----------------------------|
-| < 2    | Low coordination           |
-| 2 – 4  | Moderate                   |
-| > 4    | High coordination overhead |
+| Range  | Meaning                     |
+|--------|-----------------------------|
+| < 2    | Low coordination            |
+| 2 – 4  | Moderate                    |
+| > 4    | High coordination overhead  |
 ```
 ### Insight
 
