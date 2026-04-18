@@ -26,6 +26,127 @@ It is a model that answers questions such as:
 
 ---
 
+## 🚀 Installation
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/brunonovaesgit/flowradar.git
+cd flowradar
+```
+
+> Before cloning, pick a local folder where you want to store the project.
+
+---
+
+### 2. Set up a virtual environment
+
+```bash
+python3 -m venv venv
+source venv/bin/activate  # Linux / Mac
+
+# ou
+venv\Scripts\activate     # Windows
+```
+
+---
+
+### 3. Install dependencies
+```bash
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+```
+
+---
+
+▶️ Running
+
+Run the main analysis:
+```bash
+python run_flowradar.py
+```
+
+Run impact simulations: 
+```bash
+python compare_simulations.py
+```
+
+---
+
+🧪 Testing
+
+Run all tests:
+```bash
+pytest
+```
+
+Run with more detailed output:
+```bash
+pytest -vv
+```
+
+📊 What you get
+
+Depending on your scenario, FlowRadar will generate:
+
+- Dependency network (graph.json)
+- Impact ranking (who actually matters in the flow)
+- Dependency concentration heatmaps
+- Simulations of squad removal or changes
+- Structural explanations of system behavior
+
+---
+
+📈 What you start to see
+
+After using FlowRadar, some things become pretty clear:
+
+- Why features get stuck for weeks
+- Why splitting stories doesn’t always help
+- Why some teams “always seem delayed”
+- Why good metrics don’t necessarily mean a healthy flow
+
+---
+
+⚠️ The necessary discomfort
+
+FlowRadar won’t give you comfortable answers.
+
+It might show that:
+
+The problem isn’t the team
+The problem isn’t the process
+The problem is how the work is structured
+
+---
+
+📊 Project structure
+
+```bash
+.
+├── src/
+│   ├── analysis/
+│   ├── graph_builder/
+│   ├── metrics/
+│   ├── pipeline/
+│   ├── reports/
+│   ├── simulations/
+│   └── visualizations/
+│
+├── tests/
+├── data/
+│
+├── run_flowradar.py
+├── compare_simulations.py
+│
+├── requirements.txt
+├── requirements-dev.txt
+├── pytest.ini
+└── README.md
+```
+
+---
+
 ## 🧩 Core Concept
 
 Organizations can be modeled as a **network of dependencies**:
@@ -187,4 +308,5 @@ They struggle because they cannot see the system they operate in.
 If FlowRadar helps you understand flow, dependencies, and bottlenecks in real-world systems, consider supporting its evolution:
 
 👉 https://buymeacoffee.com/brunonovaes
+
 
